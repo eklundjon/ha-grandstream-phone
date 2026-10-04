@@ -1,0 +1,40 @@
+version: 2
+
+# Dependency update PRs. Security *alerts* work off the dependency graph and
+# don't need this file; this is only about routine version bumps.
+updates:
+  # GitHub Actions used by the workflows in .github/workflows/.
+  # hacs/action@main and home-assistant/actions/hassfest@master deliberately
+  # track moving branches per their vendors' documented usage; this keeps the
+  # pinned ones (actions/checkout, actions/setup-python) current.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: ci
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # Python test dependencies: requirements_test.txt and requirements_ha_latest.txt.
+  # In practice this bumps two pins: ruff (read by the lint job straight out of
+  # requirements_test.txt) and PHACC in requirements_ha_latest.txt, which moves
+  # CI's "HA latest" job to each new Home Assistant release. PHACC gets its own
+  # group so a Home Assistant bump that breaks something doesn't hold up ruff.
+  #
+  # Dependabot resolves with the Python in .python-version. Keep that file at the
+  # "HA latest" job's Python in test.yml.
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore
+    groups:
+      home-assistant:
+        patterns: ["pytest-homeassistant-custom-component"]
+      python:
+        patterns: ["*"]

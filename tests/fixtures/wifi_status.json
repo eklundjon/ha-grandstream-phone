@@ -1,0 +1,25 @@
+{
+  "response": "success",
+  "reason": "OK",
+  "status": {
+    "power": true,
+    "signal": 4,
+    "scanning": false,
+    "connecting": false,
+    "connected": true,
+    "connection": {
+      "ssid": "example-ssid",
+      "freq": "5280",
+      "mac": "00:0B:82:12:34:56",
+      "bssid": "00:11:22:33:44:55",
+      "keyMgmt": "SAE",
+      "pairwiseCipher": "CCMP",
+      "groupCipher": "CCMP",
+      "state": "COMPLETED",
+      "netId": 1,
+      "channel": 56,
+      "bandwidth": "HT40+"
+    },
+    "certNeed": []
+  }
+}

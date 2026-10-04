@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+.venv/
+.venv-test/
+env/
+
+# Pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+.claude/
+
+# Home Assistant (if HA config is ever added here)
+*.log
+.storage/
+secrets.yaml
+
+# Device credentials
+.credential*
+
+# Raw config exports from handsets (SSIDs, SIP accounts, phone numbers)
+config.txt
+config.xml
+user_config.txt
+cfg*.xml
+
+
+# Local working notes
+handoff.md
+TODO.md
+
+# Local research captures
+research/

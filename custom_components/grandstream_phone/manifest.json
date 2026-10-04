@@ -1,0 +1,14 @@
+{
+  "domain": "grandstream_phone",
+  "name": "Grandstream Phone",
+  "codeowners": [
+    "@eklundjon"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/eklundjon/ha-grandstream-phone",
+  "integration_type": "device",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/eklundjon/ha-grandstream-phone/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}

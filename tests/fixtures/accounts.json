@@ -1,0 +1,29 @@
+{
+  "response": "success",
+  "body": [
+    {
+      "id": 1,
+      "sip_server": "192.168.1.1",
+      "sip_id": "10",
+      "name": "UniFi",
+      "auto_cfg": "",
+      "reg": 1
+    },
+    {
+      "id": 2,
+      "sip_server": "",
+      "sip_id": "",
+      "name": "",
+      "auto_cfg": "",
+      "reg": 0
+    },
+    {
+      "id": 3,
+      "sip_server": "",
+      "sip_id": "",
+      "name": "",
+      "auto_cfg": "",
+      "reg": 0
+    }
+  ]
+}

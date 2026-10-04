@@ -1,0 +1,39 @@
+{
+  "configs": [
+    {
+      "alias": "lcd.backlight.timeout",
+      "pvalue": "1413",
+      "value": "0"
+    },
+    {
+      "alias": "key.backlight.enable",
+      "pvalue": "22234",
+      "value": "2"
+    },
+    {
+      "alias": "lcd.backlight.brightness.active",
+      "pvalue": "334",
+      "value": "60"
+    },
+    {
+      "alias": "audio.volume.ring",
+      "pvalue": "8352",
+      "value": "8"
+    },
+    {
+      "alias": "",
+      "pvalue": ":dnd",
+      "value": "0"
+    },
+    {
+      "alias": "",
+      "pvalue": ":unread_vm_1",
+      "value": "0"
+    },
+    {
+      "alias": "audio.volume.speaker",
+      "pvalue": "sp_vol",
+      "value": "8"
+    }
+  ]
+}

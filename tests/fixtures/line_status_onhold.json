@@ -1,0 +1,41 @@
+{
+  "response": "success",
+  "body": [
+    {
+      "line": 1,
+      "conf": 0,
+      "state": "onhold",
+      "acct": 0,
+      "active": 0,
+      "remotename": "+15555550100",
+      "remotenumber": "+15555550100"
+    },
+    {
+      "line": 2,
+      "conf": 0,
+      "state": "idle",
+      "acct": 0,
+      "active": 0,
+      "remotename": "",
+      "remotenumber": ""
+    },
+    {
+      "line": 3,
+      "conf": 0,
+      "state": "idle",
+      "acct": 0,
+      "active": 0,
+      "remotename": "",
+      "remotenumber": ""
+    },
+    {
+      "line": 4,
+      "conf": 0,
+      "state": "idle",
+      "acct": 0,
+      "active": 0,
+      "remotename": "",
+      "remotenumber": ""
+    }
+  ]
+}

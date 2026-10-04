@@ -1,0 +1,22 @@
+# Test dependencies for the Grandstream Phone integration.
+#
+# pytest, pytest-asyncio and the aiohttp mock all come transitively via
+# pytest-homeassistant-custom-component (PHACC), which also pins the exact
+# Home Assistant version it was built against. CI pins a specific PHACC (and
+# thus HA) per matrix job: the 2025.4 floor in .github/workflows/test.yml, and
+# the latest in requirements_ha_latest.txt. This file leaves it unpinned, which
+# locally pulls the latest for a quick dev loop. Recent PHACC releases need
+# Python 3.14:
+#
+#     uv venv --python 3.14 .venv-test
+#     uv pip install --python .venv-test/bin/python -r requirements_test.txt
+#     .venv-test/bin/python -m pytest
+#
+# The integration has no runtime requirements of its own (aiohttp comes with
+# Home Assistant), so nothing here mirrors manifest.json.
+pytest-homeassistant-custom-component
+pytest-cov
+
+# Linter, pinned so local and CI agree (the lint job reads this line).
+# Config lives in pyproject.toml.
+ruff==0.16.9
