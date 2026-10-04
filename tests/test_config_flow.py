@@ -204,3 +204,27 @@ async def test_reconfigure_to_another_handset_aborts(
     )
     assert result["reason"] == "wrong_device"
     assert entry.data[CONF_HOST] == HOST
+
+
+# ---- options ----------------------------------------------------------------- #
+
+
+async def test_options_change_polling_interval(
+    hass: HomeAssistant, phone: FakePhone, entry: MockConfigEntry
+) -> None:
+    entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert entry.runtime_data.update_interval.total_seconds() == 30
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["step_id"] == "init"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"scan_interval": 90}
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
+
+    assert entry.options == {"scan_interval": 90}
+    # Saved options reload the entry, so the new interval applies at once.
+    assert entry.runtime_data.update_interval.total_seconds() == 90

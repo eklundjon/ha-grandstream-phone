@@ -250,3 +250,53 @@ async def test_unreachable_handset_makes_everything_unavailable(
     await _refresh(hass, entry)
     assert _state(hass, "number", "lcd_brightness") == STATE_UNAVAILABLE
     assert _state(hass, "sensor", "call_state") == STATE_UNAVAILABLE
+
+
+# ---- Wi-Fi power save (disabled by default) ----------------------------------- #
+
+
+async def _enable_power_save(hass: HomeAssistant, entry: MockConfigEntry) -> str:
+    registry = er.async_get(hass)
+    entity_id = _entity_id(hass, "switch", "wifi_power_save")
+    assert entity_id is not None
+    assert registry.async_get(entity_id).disabled_by is er.RegistryEntryDisabler.INTEGRATION
+    registry.async_update_entity(entity_id, disabled_by=None)
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    return entity_id
+
+
+@pytest.mark.parametrize("mode", ["0", "4"])
+async def test_power_save_switch_keeps_the_mode(
+    hass: HomeAssistant, phone: FakePhone, entry: MockConfigEntry, mode: str
+) -> None:
+    phone.values["82269"] = mode
+    await _setup(hass, entry)
+    entity_id = await _enable_power_save(hass, entry)
+    assert hass.states.get(entity_id).state == STATE_ON
+
+    await hass.services.async_call("switch", "turn_off", {"entity_id": entity_id}, blocking=True)
+    assert phone.values["82269"] == "3"
+    assert hass.states.get(entity_id).state == STATE_OFF
+
+    # Back to the mode it had (U-APSD stays U-APSD), not always generic.
+    await hass.services.async_call("switch", "turn_on", {"entity_id": entity_id}, blocking=True)
+    assert phone.values["82269"] == mode
+
+
+async def test_power_save_switch_defaults_to_generic(
+    hass: HomeAssistant, phone: FakePhone, entry: MockConfigEntry
+) -> None:
+    phone.values["82269"] = "3"
+    await _setup(hass, entry)
+    entity_id = await _enable_power_save(hass, entry)
+    assert hass.states.get(entity_id).state == STATE_OFF
+    await hass.services.async_call("switch", "turn_on", {"entity_id": entity_id}, blocking=True)
+    assert phone.values["82269"] == "0"
+
+
+async def test_power_save_unknown_value(hass: HomeAssistant, phone: FakePhone, entry: MockConfigEntry) -> None:
+    phone.values["82269"] = "7"
+    await _setup(hass, entry)
+    entity_id = await _enable_power_save(hass, entry)
+    assert hass.states.get(entity_id).state == STATE_UNKNOWN

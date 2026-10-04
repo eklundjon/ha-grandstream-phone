@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 import aiohttp
@@ -26,9 +26,16 @@ from .api import (
     GrandstreamError,
     InvalidAuth,
     LoginInfo,
+    SessionTakenOver,
     WriteRejected,
 )
-from .const import DEFAULT_SCAN_INTERVAL, DOMAIN, KEY_DND, POLLED_KEYS
+from .const import (
+    CONF_SCAN_INTERVAL,
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
+    KEY_DND,
+    POLLED_KEYS,
+)
 from .push import BATTERY_SLOTS, EVENT_SLOTS
 
 _LOGGER = logging.getLogger(__name__)
@@ -43,6 +50,13 @@ CALL_EVENT_TYPES = {
     "missed": "missed",
     "terminated": "ended",
 }
+
+
+# A session that dies this soon after a successful request was taken over by
+# another login (polls keep an idle session alive), so leave the handset alone
+# for a while instead of taking it straight back.
+TAKEOVER_WINDOW = timedelta(minutes=2)
+TAKEOVER_BACKOFF = timedelta(minutes=5)
 
 
 def signal_call(entry_id: str) -> str:
@@ -168,14 +182,19 @@ class GrandstreamCoordinator(DataUpdateCoordinator[GrandstreamData]):
             _LOGGER,
             name=f"{DOMAIN} {entry.data[CONF_HOST]}",
             config_entry=entry,
-            update_interval=DEFAULT_SCAN_INTERVAL,
+            update_interval=timedelta(
+                seconds=entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+            ),
         )
         self.client = GrandstreamClient(
             async_get_session(hass),
             entry.data[CONF_HOST],
             entry.data[CONF_USERNAME],
             entry.data[CONF_PASSWORD],
+            takeover_window=TAKEOVER_WINDOW.total_seconds(),
         )
+        # While set, polls leave the handset alone (someone else has the session).
+        self.backoff_until: datetime | None = None
         self.push = PushStatus()
         self.battery_event: BatteryEvent | None = None
         # (number, name) of the call in progress, for naming its later events.
@@ -200,6 +219,10 @@ class GrandstreamCoordinator(DataUpdateCoordinator[GrandstreamData]):
             raise UpdateFailed(f"Cannot reach the handset: {err}") from err
 
     async def _async_update_data(self) -> GrandstreamData:
+        if self.backoff_until is not None:
+            if dt_util.utcnow() < self.backoff_until and self.data is not None:
+                return self.data
+            self.backoff_until = None
         try:
             values = await self.client.async_get_values(POLLED_KEYS)
             line_status = await self.client.async_get_line_status()
@@ -212,6 +235,17 @@ class GrandstreamCoordinator(DataUpdateCoordinator[GrandstreamData]):
             # Stop polling: retrying a rejected password walks the handset
             # into its lockout. The user re-enters credentials via reauth.
             raise ConfigEntryAuthFailed(str(err)) from err
+        except SessionTakenOver as err:
+            self.backoff_until = dt_util.utcnow() + TAKEOVER_BACKOFF
+            _LOGGER.info(
+                "%s; leaving %s alone until %s (pushed events still arrive)",
+                err,
+                self.config_entry.title,
+                dt_util.as_local(self.backoff_until).strftime("%H:%M:%S"),
+            )
+            if self.data is None:
+                raise UpdateFailed(str(err)) from err
+            return self.data
         except GrandstreamError as err:
             raise UpdateFailed(f"Handset update failed: {err}") from err
         return GrandstreamData(
@@ -223,9 +257,18 @@ class GrandstreamCoordinator(DataUpdateCoordinator[GrandstreamData]):
         )
 
     async def async_set_values(self, values: Mapping[str, str]) -> None:
-        """Write settings and publish them without waiting for the next poll."""
+        """Write settings and publish them without waiting for the next poll.
+
+        A write is deliberate, so it logs back in even if another login took
+        the session, and ends any back-off.
+        """
         try:
-            await self.client.async_set_values(values)
+            try:
+                await self.client.async_set_values(values)
+            except SessionTakenOver:
+                await self.client.async_login()
+                await self.client.async_set_values(values)
+            self.backoff_until = None
         except WriteRejected as err:
             raise HomeAssistantError(
                 translation_domain=DOMAIN,

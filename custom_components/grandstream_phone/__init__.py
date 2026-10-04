@@ -39,6 +39,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: GrandstreamConfigEntry) 
     # Logs out on unload. Newer Home Assistant also does this for coordinators
     # tied to an entry; a second call is a no-op.
     entry.async_on_unload(coordinator.async_shutdown)
+    # Options (the polling interval) are read at setup, so apply them by reloading.
+    entry.async_on_unload(entry.add_update_listener(_async_options_updated))
 
     # Register the handset now, so it shows up with its firmware even before
     # any entity does. The unique_id is the handset's MAC.
@@ -66,6 +68,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: GrandstreamConfigEntry) 
     else:
         await async_claim_slots(hass, entry)
     return True
+
+
+async def _async_options_updated(hass: HomeAssistant, entry: GrandstreamConfigEntry) -> None:
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: GrandstreamConfigEntry) -> bool:

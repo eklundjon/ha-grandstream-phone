@@ -14,7 +14,7 @@ This is an unofficial integration, not affiliated with or endorsed by Grandstrea
 
 - **Turn on the handset's web interface** if it's off: on the handset, Settings → Advanced → Security.
 - **Give Home Assistant the handset's `user` account, not `admin`.** In the handset's web interface (System Settings → Security), turn on user web access and set a user password.
-  - On firmware 1.0.3.35 the handset allows one web session per account, so if Home Assistant and you both log in as `admin`, each login kicks the other one out. Home Assistant reconnects every 30 seconds, so you won't get much done in the web interface. (1.0.1.87 allows several sessions, but logging out of one ends the others, which has much the same effect.)
+  - On firmware 1.0.3.35 the handset allows one web session per account, so if Home Assistant and you both log in as `admin`, each login kicks the other one out. (1.0.1.87 allows several sessions, but logging out of one ends the others, which has much the same effect.) When Home Assistant loses its session like that, it leaves the handset alone for 5 minutes before logging in again, so you get a window in the web interface; entities keep their last values meanwhile and pushed events still arrive. A change made from Home Assistant logs in straight away.
   - `user` can do everything this integration needs except read the battery level, and it can't change the handset's security settings.
 - **Home Assistant 2025.4 or later.**
 - A DHCP reservation for each handset is a good idea. If a handset's address changes anyway, re-adding it updates the existing entry.
@@ -43,6 +43,7 @@ One device per handset, with these entities:
 | Backlight timeout | select | Never, 15 s … 30 min |
 | Keypad backlight | select | Off / On / Auto (ambient light sensor) |
 | Do not disturb | switch | |
+| Wi-Fi power save | switch | Disabled by default; see below |
 | Call state | sensor | Idle / Ringing / Connected / On hold |
 | Call | event | Incoming / Answered / Outgoing / Missed / Ended, with the other party's number and name. Needs [pushed events](#pushed-events) |
 | Ringing | binary sensor | |
@@ -61,6 +62,7 @@ Some behavior worth knowing:
 - **Status is polled every 30 seconds, and the handset pushes changes in between.** A call or a DND change on the handset makes Home Assistant fetch the new state right away (see [Pushed events](#pushed-events)). Without pushed events, a short ring can come and go between polls.
 - **Every write is checked.** The handset answers "success" even when it ignores a change (e.g. a setting the account isn't allowed to touch), so the integration reads each change back and reports an error if it didn't stick.
 - **No call control**, on purpose: no dialing, answering or hanging up.
+- **Wi-Fi power save trades reachability for battery.** With it on and the screen dark, the handset can take seconds to answer, or miss a poll; with it off, it answers right away and the battery runs down faster. The switch is disabled by default. Enable it if you want automations to decide, e.g. off while the handset is on its charger. Turning it back on restores the power save mode the handset had.
 
 ## Pushed events
 
@@ -106,6 +108,8 @@ If the password changes, the integration makes one login attempt, stops polling,
 
 If the handset moves to a new address, use **Reconfigure** on the integration entry.
 
+The polling interval (30 seconds by default, 10–300) is under **Configure** on the integration entry. With [pushed events](#pushed-events) working, polling mostly catches settings changed on the handset itself, so a longer interval costs little.
+
 ## Example: dim the handset at night
 
 ```yaml
@@ -145,7 +149,7 @@ automation:
 ## Troubleshooting
 
 - **Entities unavailable now and then.** With the screen dark, the handset's Wi-Fi power saving can make it slow to answer. The integration retries once before giving up for that poll, so an occasional gap is expected; constant gaps aren't.
-- **Kicked out of the handset's web interface.** Home Assistant is logged in with the same account you are. See [Before you start](#before-you-start).
+- **Kicked out of the handset's web interface.** Home Assistant is logged in with the same account you are, and took the session back (it waits 5 minutes after losing it, or less if you change something from Home Assistant). See [Before you start](#before-you-start).
 - **Pushed events don't arrive** (states only change at the 30-second poll). Check Settings → Repairs first. Otherwise the handset probably can't reach Home Assistant: a firewall on the Home Assistant host blocking port 8123, or a local URL the handset can't resolve. The diagnostics download shows the push state and when the last event arrived.
 - **An entity is unavailable on an untested model.** The handset doesn't report that setting, or reports it differently. A diagnostics download in a [device support report](https://github.com/eklundjon/ha-grandstream-phone/issues/new?template=device_support.yml) is enough to sort that out.
 

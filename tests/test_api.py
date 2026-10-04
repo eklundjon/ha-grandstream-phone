@@ -20,6 +20,7 @@ from custom_components.grandstream_phone.api import (
     GrandstreamClient,
     InvalidAuth,
     PermissionDenied,
+    SessionTakenOver,
     WriteRejected,
     async_get_model_info,
 )
@@ -298,3 +299,45 @@ async def test_logout_failure_is_swallowed() -> None:
     phone.transport_errors = [aiohttp.ClientError("gone")]
     await client.async_logout()
     assert client._sid is None
+
+
+# ---- session taken over by another login ----------------------------------- #
+
+
+class _Clock:
+    def __init__(self) -> None:
+        self.now = 1000.0
+
+    def __call__(self) -> float:
+        return self.now
+
+
+async def test_session_lost_right_after_use_is_a_takeover() -> None:
+    # On 1.0.3.35 a second login on the account ends ours; on 1.0.1.87 a
+    # logout from another session does.
+    phone, clock = FakePhone(), _Clock()
+    client = GrandstreamClient(phone, HOST, USERNAME, PASSWORD, takeover_window=120, clock=clock)  # type: ignore[arg-type]
+    await client.async_get_values(["334"])
+    phone.expire_session()
+    clock.now += 30
+    with pytest.raises(SessionTakenOver):
+        await client.async_get_values(["334"])
+    assert phone.logins == 1  # didn't take it back
+
+
+async def test_session_lost_after_idle_logs_in_again() -> None:
+    phone, clock = FakePhone(), _Clock()
+    client = GrandstreamClient(phone, HOST, USERNAME, PASSWORD, takeover_window=120, clock=clock)  # type: ignore[arg-type]
+    await client.async_get_values(["334"])
+    phone.expire_session()
+    clock.now += 600
+    assert await client.async_get_values(["334"]) == {"334": "60"}
+    assert phone.logins == 2
+
+
+async def test_no_takeover_window_always_logs_in_again() -> None:
+    phone = FakePhone()
+    client = _client(phone)
+    await client.async_get_values(["334"])
+    phone.expire_session()
+    assert await client.async_get_values(["334"]) == {"334": "60"}

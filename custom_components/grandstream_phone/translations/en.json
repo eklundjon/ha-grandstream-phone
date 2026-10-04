@@ -61,6 +61,20 @@
       "wrong_device": "That address belongs to a different handset."
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Grandstream phone options",
+        "description": "Pushed events update the handset's entities as things happen; polling picks up everything else, such as settings changed on the handset itself.",
+        "data": {
+          "scan_interval": "Polling interval"
+        },
+        "data_description": {
+          "scan_interval": "How often to read the handset's settings and status, in seconds (10–300). Above 2 minutes, a login elsewhere that takes over the session isn't recognized as such."
+        }
+      }
+    }
+  },
   "entity": {
     "binary_sensor": {
       "ringing": {
@@ -150,6 +164,9 @@
     "switch": {
       "do_not_disturb": {
         "name": "Do not disturb"
+      },
+      "wifi_power_save": {
+        "name": "Wi-Fi power save"
       }
     }
   },
