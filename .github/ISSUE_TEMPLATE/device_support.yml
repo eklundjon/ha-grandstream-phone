@@ -1,0 +1,82 @@
+name: Device support report
+description: How the integration works (or doesn't) with a handset model or firmware that isn't in the support table.
+labels: ["device support"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for trying it. A report is useful whether everything works or nothing does: it's how a model moves from "probably works" to verified in the README.
+
+        If setup failed before the handset was added, there's no diagnostics download yet. Say how far setup got instead, and attach a debug log if you can.
+  - type: input
+    id: model
+    attributes:
+      label: Handset model
+      placeholder: WP836
+    validations:
+      required: true
+  - type: input
+    id: firmware
+    attributes:
+      label: Handset firmware
+      description: On the handset's device page in Home Assistant, under Firmware, or in the handset's web interface under Status.
+      placeholder: 1.0.3.35
+    validations:
+      required: true
+  - type: dropdown
+    id: result
+    attributes:
+      label: Overall result
+      options:
+        - Everything works
+        - Mostly works (some entities unavailable or wrong)
+        - Setup works, but most entities are unavailable or wrong
+        - Setup fails
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: What didn't work
+      description: Entities that are unavailable, show the wrong value, or don't change the handset. Skip this if everything works.
+  - type: dropdown
+    id: account
+    attributes:
+      label: Account Home Assistant logs in with
+      options:
+        - user
+        - admin
+    validations:
+      required: true
+  - type: input
+    id: integration_version
+    attributes:
+      label: Integration version
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: ha_version
+    attributes:
+      label: Home Assistant version
+      placeholder: 2026.9.4
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: On the handset's device page, ⋮ → Download diagnostics, then drag the file here. If setup failed, leave this empty and attach a debug log below.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Debug log (optional)
+      description: |
+        With this in configuration.yaml, retry setup (or reproduce the problem) and paste the relevant lines from home-assistant.log:
+
+        ```yaml
+        logger:
+          logs:
+            custom_components.grandstream_phone: debug
+        ```
+      render: shell

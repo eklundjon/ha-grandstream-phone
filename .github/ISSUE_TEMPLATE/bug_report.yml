@@ -1,0 +1,77 @@
+name: Bug report
+description: Something doesn't work on a handset this integration supports.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For a model or firmware that isn't in the README's support table, use the **Device support report** form instead.
+
+        Please attach a diagnostics download: it's the fastest way to sort out most problems. It includes the handset's model, firmware and settings, but not its address, credentials, MAC, Wi-Fi name or caller details.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: Handset model
+      placeholder: WP826
+    validations:
+      required: true
+  - type: input
+    id: firmware
+    attributes:
+      label: Handset firmware
+      description: On the handset's device page in Home Assistant, under Firmware.
+      placeholder: 1.0.3.35
+    validations:
+      required: true
+  - type: dropdown
+    id: account
+    attributes:
+      label: Account Home Assistant logs in with
+      options:
+        - user
+        - admin
+    validations:
+      required: true
+  - type: input
+    id: integration_version
+    attributes:
+      label: Integration version
+      description: In HACS, or in the integration's manifest.json.
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: ha_version
+    attributes:
+      label: Home Assistant version
+      description: Settings → About.
+      placeholder: 2026.9.4
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: On the handset's device page, ⋮ → Download diagnostics, then drag the file here.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Debug log (optional)
+      description: |
+        Turn on debug logging with this in configuration.yaml, reproduce the problem, and paste the relevant lines from home-assistant.log:
+
+        ```yaml
+        logger:
+          logs:
+            custom_components.grandstream_phone: debug
+        ```
+      render: shell
