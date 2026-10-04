@@ -1,16 +1,17 @@
 """Exercise the integration's API client against a real handset.
 
 Usage:
-  .venv-test/bin/python scripts/client_smoke.py HOST [CREDFILE]
+  .venv-test/bin/python scripts/client_smoke.py [--admin] [--host HOST]
 
 Reads model info, logs in, reads settings and status, then writes LCD
-brightness one step down and restores it. CREDFILE holds USERNAME= and
-PASSWORD= lines (default: .credential-user in the repo root). Nothing it
-changes is left changed.
+brightness one step down and restores it. Nothing it changes is left changed.
+The handset's address and passwords come from .test_phone in the repo root
+(see scripts/test_phone.py); it logs in as `user` unless --admin is given.
 """
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import os
 import sys
@@ -19,6 +20,9 @@ import aiohttp
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
+sys.path.insert(0, os.path.join(ROOT, "scripts"))
+
+from test_phone import load as load_test_phone  # noqa: E402
 
 from custom_components.grandstream_phone.api import (  # noqa: E402
     GrandstreamClient,
@@ -27,17 +31,12 @@ from custom_components.grandstream_phone.api import (  # noqa: E402
 )
 
 
-def load_credentials(path: str) -> tuple[str, str]:
-    creds = dict(line.strip().split("=", 1) for line in open(path) if "=" in line)
-    return creds["USERNAME"], creds["PASSWORD"]
-
-
-async def main(host: str, cred_path: str) -> None:
+async def main(host: str, username: str, password: str) -> None:
     async with aiohttp.ClientSession() as session:
         model = await async_get_model_info(session, host)
         print("model:", model["model"])
 
-        client = GrandstreamClient(session, host, *load_credentials(cred_path))
+        client = GrandstreamClient(session, host, username, password)
         info = await client.async_login()
         print(f"login: role={info.role} firmware={info.firmware}")
         try:
@@ -63,6 +62,9 @@ async def main(host: str, cred_path: str) -> None:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        sys.exit(__doc__)
-    asyncio.run(main(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else os.path.join(ROOT, ".credential-user")))
+    parser = argparse.ArgumentParser(usage=__doc__)
+    parser.add_argument("--admin", action="store_true", help="log in as admin instead of user")
+    parser.add_argument("--host", help="override ADDR from .test_phone")
+    opts = parser.parse_args()
+    test_phone = load_test_phone()
+    asyncio.run(main(opts.host or test_phone.addr, *test_phone.credentials(admin=opts.admin)))
