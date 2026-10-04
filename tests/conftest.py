@@ -34,6 +34,7 @@ def phone() -> Generator[FakePhone]:
     with (
         patch("custom_components.grandstream_phone.coordinator.async_get_session", return_value=fake),
         patch("custom_components.grandstream_phone.config_flow.async_get_session", return_value=fake),
+        patch("custom_components.grandstream_phone.event_urls.async_get_session", return_value=fake),
     ):
         yield fake
 

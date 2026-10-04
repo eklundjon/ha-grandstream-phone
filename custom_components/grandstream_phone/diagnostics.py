@@ -12,7 +12,8 @@ from dataclasses import asdict
 from typing import Any
 
 from homeassistant.components.diagnostics import async_redact_data
-from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
+from homeassistant.config_entries import ConfigEntryState
+from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME, CONF_WEBHOOK_ID
 from homeassistant.core import HomeAssistant
 
 from .coordinator import GrandstreamConfigEntry
@@ -28,12 +29,20 @@ TO_REDACT = {
     "remotenumber",
     "ssid",
     "bssid",
+    CONF_WEBHOOK_ID,
+    # MAC and caller details in the last pushed event.
+    "m",
+    "r",
+    "n",
 }
 
 
 async def async_get_config_entry_diagnostics(
     hass: HomeAssistant, entry: GrandstreamConfigEntry
 ) -> dict[str, Any]:
+    if entry.state is not ConfigEntryState.LOADED:
+        # Disabled or failed to set up: there's no session or data to show.
+        return async_redact_data({"entry": entry.as_dict()}, TO_REDACT)
     coordinator = entry.runtime_data
     info = coordinator.login_info
     data = coordinator.data
@@ -46,6 +55,8 @@ async def async_get_config_entry_diagnostics(
                 "update_interval": str(coordinator.update_interval),
             },
             "data": asdict(data) if data else None,
+            "push": asdict(coordinator.push),
+            "battery_event": asdict(coordinator.battery_event) if coordinator.battery_event else None,
         },
         TO_REDACT,
     )

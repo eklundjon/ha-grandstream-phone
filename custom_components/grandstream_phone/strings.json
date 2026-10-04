@@ -71,6 +71,28 @@
       },
       "sip_registered": {
         "name": "SIP registered"
+      },
+      "battery_low": {
+        "name": "Battery low"
+      },
+      "on_charger": {
+        "name": "On charger"
+      }
+    },
+    "event": {
+      "call": {
+        "name": "Call",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "incoming": "Incoming",
+              "answered": "Answered",
+              "outgoing": "Outgoing",
+              "missed": "Missed",
+              "ended": "Ended"
+            }
+          }
+        }
       }
     },
     "number": {
@@ -120,6 +142,9 @@
       },
       "wifi_signal": {
         "name": "Wi-Fi signal"
+      },
+      "last_pushed_event": {
+        "name": "Last pushed event"
       }
     },
     "switch": {
@@ -137,6 +162,23 @@
     },
     "cannot_connect": {
       "message": "Could not reach the handset: {error}"
+    }
+  },
+  "issues": {
+    "slots_in_use": {
+      "title": "{name}: some event URLs point elsewhere",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Take over {name}'s event URLs?",
+            "description": "These event URLs on {name} already point somewhere else ({hosts}): {events}. This is usually another Home Assistant instance that also has this handset, or a URL set by hand. Until they point here, those events reach this instance only through polling.\n\nTaking over replaces them with this instance's URLs, and whatever they pointed at stops receiving those events. Only do this if the other destination no longer needs them."
+          }
+        }
+      }
+    },
+    "no_url": {
+      "title": "{name}: no local URL for pushed events",
+      "description": "The handset needs a local address to send events to, and Home Assistant doesn't have one it can use. Set a local network URL under Settings → System → Network. Until then, {name} is polled only."
     }
   }
 }

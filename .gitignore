@@ -33,8 +33,9 @@ htmlcov/
 .storage/
 secrets.yaml
 
-# Device credentials
+# Device credentials, and the test handset the scripts use (see scripts/test_phone.py)
 .credential*
+.test_phone
 
 # Raw config exports from handsets (SSIDs, SIP accounts, phone numbers)
 config.txt

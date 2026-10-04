@@ -12,6 +12,28 @@
         "state": {
           "off": "mdi:phone-remove"
         }
+      },
+      "on_charger": {
+        "default": "mdi:power-plug",
+        "state": {
+          "off": "mdi:power-plug-off"
+        }
+      }
+    },
+    "event": {
+      "call": {
+        "default": "mdi:phone",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "incoming": "mdi:phone-incoming",
+              "answered": "mdi:phone-in-talk",
+              "outgoing": "mdi:phone-outgoing",
+              "missed": "mdi:phone-missed",
+              "ended": "mdi:phone-hangup"
+            }
+          }
+        }
       }
     },
     "number": {
@@ -44,6 +66,9 @@
       },
       "wifi_signal": {
         "default": "mdi:wifi"
+      },
+      "last_pushed_event": {
+        "default": "mdi:webhook"
       }
     },
     "switch": {

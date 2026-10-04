@@ -1,0 +1,9 @@
+{
+  "model": "WP826",
+  "defines": {
+    "num_accounts": 3,
+    "support_lcd_backlight": true,
+    "support_dnd": true,
+    "support_bluetooth": true
+  }
+}

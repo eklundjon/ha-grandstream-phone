@@ -2,12 +2,11 @@
 """Minimal client for the Grandstream WP826 web API (firmware 1.0.3.35).
 
 Usage:
-  wp826.py [-c CREDFILE] HOST get 334 1413 :dnd
-  wp826.py [-c CREDFILE] HOST set 334=10 1413=30
+  wp826.py [--admin] [--host HOST] get 334 1413 :dnd
+  wp826.py [--admin] [--host HOST] set 334=10 1413=30
 
-Credentials come from WP826_USERNAME / WP826_PASSWORD, else CREDFILE, else the
-first of .credential-admin / .credential in the repo root (USERNAME= and
-PASSWORD= lines).
+The handset's address and passwords come from .test_phone in the repo root
+(see scripts/test_phone.py). Logs in as `user` unless --admin is given.
 
 Uses HTTPS. The handset's certificate is per-device and signed by a
 Grandstream private CA, so it is not verified.
@@ -30,6 +29,9 @@ import ssl
 import sys
 import urllib.parse
 import urllib.request
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from test_phone import load as load_test_phone  # noqa: E402
 
 
 def sha256(s):
@@ -92,29 +94,17 @@ class WP826:
             raise RuntimeError(f"update failed: {r}")
 
 
-def load_credentials(path=None):
-    user = os.environ.get("WP826_USERNAME")
-    password = os.environ.get("WP826_PASSWORD")
-    if user and password:
-        return user, password
-    if path is None:
-        # The repo root, one level up from scripts/.
-        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        candidates = [os.path.join(root, f) for f in (".credential-admin", ".credential")]
-        path = next((c for c in candidates if os.path.exists(c)), candidates[-1])
-    creds = dict(line.strip().split("=", 1) for line in open(path) if "=" in line)
-    return creds["USERNAME"], creds["PASSWORD"]
-
-
 def main(argv):
     parser = argparse.ArgumentParser(usage=__doc__)
-    parser.add_argument("-c", "--credential")
-    parser.add_argument("host")
+    parser.add_argument("--admin", action="store_true", help="log in as admin instead of user")
+    parser.add_argument("--host", help="override ADDR from .test_phone")
     parser.add_argument("cmd", choices=("get", "set"))
     parser.add_argument("args", nargs="+")
     opts = parser.parse_args(argv[1:])
-    host, cmd, args = opts.host, opts.cmd, [a.removeprefix("P") for a in opts.args]
-    phone = WP826(host, *load_credentials(opts.credential))
+    test_phone = load_test_phone()
+    host = opts.host or test_phone.addr
+    cmd, args = opts.cmd, [a.removeprefix("P") for a in opts.args]
+    phone = WP826(host, *test_phone.credentials(admin=opts.admin))
     phone.login()
     try:
         if cmd == "get":
