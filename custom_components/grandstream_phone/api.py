@@ -228,7 +228,13 @@ class GrandstreamClient:
     # ---- settings --------------------------------------------------------- #
 
     async def async_get_values(self, keys: Iterable[str]) -> dict[str, str]:
-        """Read settings and runtime values. Unknown keys are left out."""
+        """Read settings and runtime values. Keys the handset doesn't know are left out.
+
+        The handset answers every key it's asked for: one it doesn't know comes
+        back with an empty value and an empty alias. A real setting that happens
+        to be empty (an unset event URL, say) still has its alias, and a runtime
+        value (``:dnd``) has no alias but isn't empty, so both survive.
+        """
         keys = list(keys)
         payload = await self._authed(
             "GET", "/cgi-bin/config_get", params={"pvalues": ",".join(keys)}
@@ -239,7 +245,9 @@ class GrandstreamClient:
         return {
             str(item["pvalue"]): str(item.get("value", ""))
             for item in configs
-            if isinstance(item, dict) and "pvalue" in item
+            if isinstance(item, dict)
+            and "pvalue" in item
+            and (item.get("value") or item.get("alias"))
         }
 
     async def async_set_values(self, values: Mapping[str, str]) -> None:

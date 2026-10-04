@@ -40,6 +40,20 @@ PASSWORD = "correct horse"
 NONCE = load_fixture("access")["body"]
 
 
+_FIXTURE_ALIASES = {c["pvalue"]: c["alias"] for c in load_fixture("config_get")["configs"]}
+
+
+def _alias(key: str) -> str:
+    """The alias the handset reports for a setting it has.
+
+    P-number settings have one; runtime (":dnd") and text-named keys don't.
+    Keys outside the fixture get a made-up alias if they're P-numbers.
+    """
+    if key in _FIXTURE_ALIASES:
+        return _FIXTURE_ALIASES[key]
+    return f"test.p{key}" if key.isdigit() else ""
+
+
 def sha256(text: str) -> str:
     return hashlib.sha256(text.encode()).hexdigest()
 
@@ -156,12 +170,15 @@ class FakePhone:
         if path == "/cgi-bin/config_get":
             if not self._authed(kwargs):
                 return 200, load_fixture("config_get_session_expired")
+            # Like the WP826: every key asked for is answered. A key the
+            # handset doesn't have comes back with an empty value and alias.
             keys = kwargs["params"]["pvalues"].split(",")
             return 200, {
                 "configs": [
-                    {"alias": "", "pvalue": k, "value": self.values[k]}
-                    for k in keys
+                    {"alias": _alias(k), "pvalue": k, "value": self.values[k]}
                     if k in self.values
+                    else {"alias": "", "pvalue": k, "value": ""}
+                    for k in keys
                 ]
             }
         if path == "/cgi-bin/config_update":
