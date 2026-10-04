@@ -53,6 +53,7 @@ async def async_get_config_entry_diagnostics(
             "coordinator": {
                 "last_update_success": coordinator.last_update_success,
                 "update_interval": str(coordinator.update_interval),
+                "backoff_until": coordinator.backoff_until,
             },
             "data": asdict(data) if data else None,
             "push": asdict(coordinator.push),

@@ -22,6 +22,11 @@ the handset's own web UI (firmware 1.0.3.35) and verified against a WP826:
   ``{"status": "session-expired"}`` body on ``config_get``.
 * With the screen dark, Wi-Fi power save can stall the TLS handshake, so
   transport errors are retried once.
+* Another login can end our session: on 1.0.3.35 a second login on the same
+  account does, on 1.0.1.87 a logout from another session on it does. With a
+  ``takeover_window``, a session that dies that soon after a successful
+  request raises ``SessionTakenOver`` instead of logging straight back in,
+  which would end the other session in turn.
 """
 
 from __future__ import annotations
@@ -30,7 +35,8 @@ import asyncio
 import hashlib
 import logging
 import re
-from collections.abc import Iterable, Mapping
+import time
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -82,6 +88,10 @@ class WriteRejected(GrandstreamError):
     def __init__(self, keys: Iterable[str]) -> None:
         self.keys = sorted(keys)
         super().__init__(f"handset did not apply: {', '.join(self.keys)}")
+
+
+class SessionTakenOver(GrandstreamError):
+    """The session ended moments after it was last used: another login took it."""
 
 
 class _SessionExpired(Exception):
@@ -147,6 +157,9 @@ class GrandstreamClient:
         username: str,
         password: str,
         timeout: aiohttp.ClientTimeout = DEFAULT_TIMEOUT,
+        *,
+        takeover_window: float | None = None,
+        clock: Callable[[], float] | None = None,
     ) -> None:
         self._session = session
         self._host = host
@@ -157,6 +170,11 @@ class GrandstreamClient:
         self._sid: str | None = None
         self._login_info: LoginInfo | None = None
         self._login_lock = asyncio.Lock()
+        # Seconds; None means always log straight back in.
+        self._takeover_window = takeover_window
+        # Looked up at call time, so a patched time.monotonic (tests) applies.
+        self._clock = clock or (lambda: time.monotonic())
+        self._last_ok: float | None = None
 
     @property
     def host(self) -> str:
@@ -331,14 +349,29 @@ class GrandstreamClient:
             if form_sid:
                 form = {**(form or {}), "sid": sid}
             try:
-                return await self._request(
+                payload = await self._request(
                     method, path, params=params, form=form, json_body=json_body
                 )
             except _SessionExpired:
                 if attempt == 1:
                     raise PermissionDenied(f"{path} refused after a fresh login") from None
+                if self._taken_over():
+                    raise SessionTakenOver(
+                        f"session with {self._host} ended "
+                        f"{self._clock() - self._last_ok:.0f} s after it was last used"  # type: ignore[operator]
+                    ) from None
                 _LOGGER.debug("Session with %s expired, logging in again", self._host)
+            else:
+                self._last_ok = self._clock()
+                return payload
         raise AssertionError("unreachable")
+
+    def _taken_over(self) -> bool:
+        return (
+            self._takeover_window is not None
+            and self._last_ok is not None
+            and self._clock() - self._last_ok < self._takeover_window
+        )
 
     async def _relogin(self) -> None:
         sid_before = self._sid

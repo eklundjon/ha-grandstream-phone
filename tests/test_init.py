@@ -32,6 +32,11 @@ async def _setup(hass: HomeAssistant, entry: MockConfigEntry) -> None:
     await hass.async_block_till_done()
 
 
+def _idle(coordinator) -> None:
+    """Pretend the last successful request was long ago (outside the takeover window)."""
+    coordinator.client._last_ok -= 3600
+
+
 def _reauth_flows(hass: HomeAssistant) -> list:
     return [
         f for f in hass.config_entries.flow.async_progress()
@@ -135,6 +140,7 @@ async def test_password_changed_while_running_starts_reauth(
 ) -> None:
     await _setup(hass, entry)
     coordinator = entry.runtime_data
+    _idle(coordinator)
     phone.expire_session()
     phone.password = "changed on the handset"
     await coordinator.async_refresh()
@@ -148,8 +154,10 @@ async def test_password_changed_while_running_starts_reauth(
 async def test_session_expiry_is_invisible(
     hass: HomeAssistant, phone: FakePhone, entry: MockConfigEntry
 ) -> None:
+    # A session that ends after sitting idle (not one taken by another login).
     await _setup(hass, entry)
     coordinator = entry.runtime_data
+    _idle(coordinator)
     phone.expire_session()
     await coordinator.async_refresh()
     assert coordinator.last_update_success is True
@@ -229,3 +237,59 @@ async def test_diagnostics_redacts_household_details(
     assert diag["data"]["values"][KEY_LCD_BRIGHTNESS] == "60"
     assert diag["data"]["line_status"][0]["state"] == "connected"
     assert diag["data"]["battery"]["capacity"] == load_fixture("battery_status")["battery"]["capacity"]
+
+
+# ---- another login takes the session ----------------------------------------- #
+
+
+async def test_takeover_backs_off_and_keeps_entities(
+    hass: HomeAssistant, phone: FakePhone, entry: MockConfigEntry, freezer
+) -> None:
+    await _setup(hass, entry)
+    coordinator = entry.runtime_data
+    logins = phone.logins
+    # Someone logs in as the same account moments after our last poll.
+    phone.expire_session()
+    await coordinator.async_refresh()
+    assert coordinator.last_update_success is True
+    assert coordinator.backoff_until is not None
+    assert coordinator.data.values[KEY_LCD_BRIGHTNESS] == "60"
+    assert phone.logins == logins  # didn't take the session back
+
+    # During the back-off, polls leave the handset alone.
+    calls = len(phone.calls)
+    freezer.tick(240)
+    await coordinator.async_refresh()
+    assert len(phone.calls) == calls
+
+    # After it, log in again and carry on.
+    freezer.tick(120)
+    await coordinator.async_refresh()
+    assert coordinator.backoff_until is None
+    assert phone.logins == logins + 1
+    assert coordinator.last_update_success is True
+
+
+async def test_write_during_backoff_logs_in(
+    hass: HomeAssistant, phone: FakePhone, entry: MockConfigEntry
+) -> None:
+    await _setup(hass, entry)
+    coordinator = entry.runtime_data
+    phone.expire_session()
+    await coordinator.async_refresh()
+    assert coordinator.backoff_until is not None
+
+    await coordinator.async_set_values({KEY_LCD_BRIGHTNESS: "20"})
+    assert phone.values[KEY_LCD_BRIGHTNESS] == "20"
+    assert coordinator.backoff_until is None
+
+
+async def test_takeover_before_any_data_is_a_failed_update(
+    hass: HomeAssistant, phone: FakePhone, entry: MockConfigEntry
+) -> None:
+    await _setup(hass, entry)
+    coordinator = entry.runtime_data
+    coordinator.data = None
+    phone.expire_session()
+    await coordinator.async_refresh()
+    assert coordinator.last_update_success is False

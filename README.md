@@ -14,7 +14,7 @@ This is an unofficial integration, not affiliated with or endorsed by Grandstrea
 
 - **Turn on the handset's web interface** if it's off: on the handset, Settings → Advanced → Security.
 - **Give Home Assistant the handset's `user` account, not `admin`.** In the handset's web interface (System Settings → Security), turn on user web access and set a user password.
-  - On firmware 1.0.3.35 the handset allows one web session per account, so if Home Assistant and you both log in as `admin`, each login kicks the other one out. Home Assistant reconnects every 30 seconds, so you won't get much done in the web interface. (1.0.1.87 allows several sessions, but logging out of one ends the others, which has much the same effect.)
+  - On firmware 1.0.3.35 the handset allows one web session per account, so if Home Assistant and you both log in as `admin`, each login kicks the other one out. (1.0.1.87 allows several sessions, but logging out of one ends the others, which has much the same effect.) When Home Assistant loses its session like that, it leaves the handset alone for 5 minutes before logging in again, so you get a window in the web interface; entities keep their last values meanwhile and pushed events still arrive. A change made from Home Assistant logs in straight away.
   - `user` can do everything this integration needs except read the battery level, and it can't change the handset's security settings.
 - **Home Assistant 2025.4 or later.**
 - A DHCP reservation for each handset is a good idea. If a handset's address changes anyway, re-adding it updates the existing entry.
@@ -149,7 +149,7 @@ automation:
 ## Troubleshooting
 
 - **Entities unavailable now and then.** With the screen dark, the handset's Wi-Fi power saving can make it slow to answer. The integration retries once before giving up for that poll, so an occasional gap is expected; constant gaps aren't.
-- **Kicked out of the handset's web interface.** Home Assistant is logged in with the same account you are. See [Before you start](#before-you-start).
+- **Kicked out of the handset's web interface.** Home Assistant is logged in with the same account you are, and took the session back (it waits 5 minutes after losing it, or less if you change something from Home Assistant). See [Before you start](#before-you-start).
 - **Pushed events don't arrive** (states only change at the 30-second poll). Check Settings → Repairs first. Otherwise the handset probably can't reach Home Assistant: a firewall on the Home Assistant host blocking port 8123, or a local URL the handset can't resolve. The diagnostics download shows the push state and when the last event arrived.
 - **An entity is unavailable on an untested model.** The handset doesn't report that setting, or reports it differently. A diagnostics download in a [device support report](https://github.com/eklundjon/ha-grandstream-phone/issues/new?template=device_support.yml) is enough to sort that out.
 
