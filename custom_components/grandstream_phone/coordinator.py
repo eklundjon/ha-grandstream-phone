@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 import aiohttp
@@ -28,7 +28,13 @@ from .api import (
     LoginInfo,
     WriteRejected,
 )
-from .const import DEFAULT_SCAN_INTERVAL, DOMAIN, KEY_DND, POLLED_KEYS
+from .const import (
+    CONF_SCAN_INTERVAL,
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
+    KEY_DND,
+    POLLED_KEYS,
+)
 from .push import BATTERY_SLOTS, EVENT_SLOTS
 
 _LOGGER = logging.getLogger(__name__)
@@ -168,7 +174,9 @@ class GrandstreamCoordinator(DataUpdateCoordinator[GrandstreamData]):
             _LOGGER,
             name=f"{DOMAIN} {entry.data[CONF_HOST]}",
             config_entry=entry,
-            update_interval=DEFAULT_SCAN_INTERVAL,
+            update_interval=timedelta(
+                seconds=entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+            ),
         )
         self.client = GrandstreamClient(
             async_get_session(hass),

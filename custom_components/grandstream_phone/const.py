@@ -1,7 +1,5 @@
 """Constants for the Grandstream Phone integration."""
 
-from datetime import timedelta
-
 DOMAIN = "grandstream_phone"
 MANUFACTURER = "Grandstream"
 
@@ -10,7 +8,12 @@ CONF_MODEL = "model"
 # The handset's least-privileged web account. Its name is fixed by firmware.
 DEFAULT_USERNAME = "user"
 
-DEFAULT_SCAN_INTERVAL = timedelta(seconds=30)
+# Polling interval, in seconds (options flow). Pushed events cover the time in
+# between, so this mostly bounds how stale settings changed on the handset get.
+CONF_SCAN_INTERVAL = "scan_interval"
+DEFAULT_SCAN_INTERVAL = 30
+MIN_SCAN_INTERVAL = 10
+MAX_SCAN_INTERVAL = 300
 
 # Models tested end to end, so the config flow doesn't ask for confirmation.
 # Add a model here only with a contributor's report (see README).

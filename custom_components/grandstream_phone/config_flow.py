@@ -6,10 +6,19 @@ from collections.abc import Mapping
 from typing import Any
 
 import voluptuous as vol
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlow,
+)
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
+from homeassistant.core import callback
 from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.selector import (
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
     TextSelector,
     TextSelectorConfig,
     TextSelectorType,
@@ -26,9 +35,13 @@ from .api import (
 )
 from .const import (
     CONF_MODEL,
+    CONF_SCAN_INTERVAL,
+    DEFAULT_SCAN_INTERVAL,
     DEFAULT_USERNAME,
     DEVICE_SUPPORT_URL,
     DOMAIN,
+    MAX_SCAN_INTERVAL,
+    MIN_SCAN_INTERVAL,
     VERIFIED_MODELS,
 )
 from .coordinator import async_get_session
@@ -49,6 +62,11 @@ class GrandstreamConfigFlow(ConfigFlow, domain=DOMAIN):
     """Add a handset."""
 
     VERSION = 1
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
+        return GrandstreamOptionsFlow()
 
     def __init__(self) -> None:
         self._host = ""
@@ -237,3 +255,36 @@ class GrandstreamConfigFlow(ConfigFlow, domain=DOMAIN):
             None,
         )
         return info, extension
+
+
+class GrandstreamOptionsFlow(OptionsFlow):
+    """Per-handset options. Saving them reloads the entry.
+
+    No __init__: Home Assistant sets `self.config_entry`, which is read-only
+    from 2024.12 on.
+    """
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        if user_input is not None:
+            return self.async_create_entry(
+                data={CONF_SCAN_INTERVAL: int(user_input[CONF_SCAN_INTERVAL])}
+            )
+        current = self.config_entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_SCAN_INTERVAL, default=current): NumberSelector(
+                        NumberSelectorConfig(
+                            min=MIN_SCAN_INTERVAL,
+                            max=MAX_SCAN_INTERVAL,
+                            step=5,
+                            unit_of_measurement="s",
+                            mode=NumberSelectorMode.BOX,
+                        )
+                    ),
+                }
+            ),
+        )

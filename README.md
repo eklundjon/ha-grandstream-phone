@@ -106,6 +106,8 @@ If the password changes, the integration makes one login attempt, stops polling,
 
 If the handset moves to a new address, use **Reconfigure** on the integration entry.
 
+The polling interval (30 seconds by default, 10–300) is under **Configure** on the integration entry. With [pushed events](#pushed-events) working, polling mostly catches settings changed on the handset itself, so a longer interval costs little.
+
 ## Example: dim the handset at night
 
 ```yaml
