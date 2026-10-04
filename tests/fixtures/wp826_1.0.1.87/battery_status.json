@@ -1,0 +1,8 @@
+{
+  "response": "success",
+  "battery": {
+    "status": "Full",
+    "capacity": 100,
+    "present": true
+  }
+}

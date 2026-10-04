@@ -1,0 +1,109 @@
+{
+  "configs": [
+    {
+      "alias": "lcd.backlight.timeout",
+      "pvalue": "1413",
+      "value": "30"
+    },
+    {
+      "alias": "ons.actionUrl.answerNewInCall",
+      "pvalue": "22171",
+      "value": ""
+    },
+    {
+      "alias": "key.backlight.enable",
+      "pvalue": "22234",
+      "value": "2"
+    },
+    {
+      "alias": "ons.actionUrl.batteryLow",
+      "pvalue": "22568",
+      "value": ""
+    },
+    {
+      "alias": "ons.actionUrl.batterySufficient",
+      "pvalue": "22570",
+      "value": ""
+    },
+    {
+      "alias": "lcd.backlight.brightness.active",
+      "pvalue": "334",
+      "value": "60"
+    },
+    {
+      "alias": "ons.actionUrl.incomingCall",
+      "pvalue": "8310",
+      "value": ""
+    },
+    {
+      "alias": "ons.actionUrl.outgoingCall",
+      "pvalue": "8311",
+      "value": ""
+    },
+    {
+      "alias": "ons.actionUrl.missedCall",
+      "pvalue": "8312",
+      "value": ""
+    },
+    {
+      "alias": "ons.actionUrl.establishedCall",
+      "pvalue": "8313",
+      "value": ""
+    },
+    {
+      "alias": "ons.actionUrl.terminatedCall",
+      "pvalue": "8314",
+      "value": ""
+    },
+    {
+      "alias": "ons.actionUrl.rejectIncomingCall",
+      "pvalue": "8315",
+      "value": ""
+    },
+    {
+      "alias": "ons.actionUrl.openDnd",
+      "pvalue": "8316",
+      "value": ""
+    },
+    {
+      "alias": "ons.actionUrl.closedDnd",
+      "pvalue": "8317",
+      "value": ""
+    },
+    {
+      "alias": "ons.actionUrl.idleToBusy",
+      "pvalue": "8328",
+      "value": ""
+    },
+    {
+      "alias": "ons.actionUrl.busyToIdle",
+      "pvalue": "8329",
+      "value": ""
+    },
+    {
+      "alias": "audio.volume.ring",
+      "pvalue": "8352",
+      "value": "8"
+    },
+    {
+      "alias": "",
+      "pvalue": ":dnd",
+      "value": "0"
+    },
+    {
+      "alias": "",
+      "pvalue": ":unread_vm_1",
+      "value": "6"
+    },
+    {
+      "alias": "",
+      "pvalue": "AccountRegistered1",
+      "value": "1"
+    },
+    {
+      "alias": "audio.volume.speaker",
+      "pvalue": "sp_vol",
+      "value": "6"
+    }
+  ]
+}
