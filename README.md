@@ -14,7 +14,7 @@ This is an unofficial integration, not affiliated with or endorsed by Grandstrea
 
 - **Turn on the handset's web interface** if it's off: on the handset, Settings → Advanced → Security.
 - **Give Home Assistant the handset's `user` account, not `admin`.** In the handset's web interface (System Settings → Security), turn on user web access and set a user password.
-  - The handset allows one web session per account, so if Home Assistant and you both log in as `admin`, each login kicks the other one out. Home Assistant reconnects every 30 seconds, so you won't get much done in the web interface.
+  - On firmware 1.0.3.35 the handset allows one web session per account, so if Home Assistant and you both log in as `admin`, each login kicks the other one out. Home Assistant reconnects every 30 seconds, so you won't get much done in the web interface. (1.0.1.87 allows several sessions, but logging out of one ends the others, which has much the same effect.)
   - `user` can do everything this integration needs except read the battery level, and it can't change the handset's security settings.
 - **Home Assistant 2025.4 or later.**
 - A DHCP reservation for each handset is a good idea. If a handset's address changes anyway, re-adding it updates the existing entry.
@@ -24,6 +24,7 @@ This is an unofficial integration, not affiliated with or endorsed by Grandstrea
 | Model | Firmware | Status | Tested by |
 |---|---|---|---|
 | WP826 | 1.0.3.35 | Verified 2026-10-04: every entity, setup, re-authentication | [@eklundjon](https://github.com/eklundjon) |
+| WP826 | 1.0.1.87 | Verified 2026-10-04 as `user`: every entity, setup, pushed events | [@eklundjon](https://github.com/eklundjon) |
 
 Other WP8x6 handsets will **probably** work. They run the same web interface and API as the WP826, and the WP826's web interface carries settings for features it doesn't have, which suggests one firmware family underneath. Setup lets you add any model that answers like a WP826, with a warning if it isn't in the table above.
 
@@ -53,9 +54,18 @@ One device per handset, with these entities:
 Some behavior worth knowing:
 
 - **Changes apply immediately and quietly.** On the WP826, a brightness, timeout or DND change takes effect at once without a popup, and doesn't wake a dark screen. That's what makes overnight automations practical.
-- **Status is polled every 30 seconds**, so a short ring can come and go between polls. Call events pushed from the handset are planned, which will fix that.
+- **Status is polled every 30 seconds, and the handset pushes changes in between.** A call or a DND change on the handset makes Home Assistant fetch the new state right away (see [Pushed events](#pushed-events)). Without pushed events, a short ring can come and go between polls.
 - **Every write is checked.** The handset answers "success" even when it ignores a change (e.g. a setting the account isn't allowed to touch), so the integration reads each change back and reports an error if it didn't stick.
 - **No call control**, on purpose: no dialing, answering or hanging up.
+
+## Pushed events
+
+The handset can request a URL whenever something happens: a call comes in, is answered or ends, DND changes, the battery runs low. Grandstream calls these Action URLs (in the handset's web interface under Maintenance → Outbound Notification). The integration points them at a Home Assistant webhook, so changes show up immediately instead of at the next poll.
+
+- **The handset has to reach Home Assistant** over plain HTTP on your network, at Home Assistant's local URL (Settings → System → Network, or the address Home Assistant detects if that's unset). If there's nothing usable, a Repairs notice says so and the handset is polled only.
+- **It only takes empty URLs, or ones it set itself.** A URL that points somewhere else (another Home Assistant instance with the same handset, or something you set up by hand) is left alone, with a Repairs notice naming the events. The notice offers to take them over.
+- **It removes its URLs when you disable the device or the integration entry, or delete the entry**, so another instance can claim the handset. A restart or reload leaves them in place.
+- Note that the webhook ID in each URL is the only thing protecting it, since the handset can't authenticate. The webhook only accepts requests from your local network, and ignores ones that don't carry this handset's MAC address.
 
 ## Install
 
@@ -128,6 +138,7 @@ automation:
 
 - **Entities unavailable now and then.** With the screen dark, the handset's Wi-Fi power saving can make it slow to answer. The integration retries once before giving up for that poll, so an occasional gap is expected; constant gaps aren't.
 - **Kicked out of the handset's web interface.** Home Assistant is logged in with the same account you are. See [Before you start](#before-you-start).
+- **Pushed events don't arrive** (states only change at the 30-second poll). Check Settings → Repairs first. Otherwise the handset probably can't reach Home Assistant: a firewall on the Home Assistant host blocking port 8123, or a local URL the handset can't resolve. The diagnostics download shows the push state and when the last event arrived.
 - **An entity is unavailable on an untested model.** The handset doesn't report that setting, or reports it differently. A diagnostics download in a [device support report](https://github.com/eklundjon/ha-grandstream-phone/issues/new?template=device_support.yml) is enough to sort that out.
 
 To report a problem, open the integration's device page, use ⋮ → **Download diagnostics**, and attach the file to a [bug report](https://github.com/eklundjon/ha-grandstream-phone/issues/new?template=bug_report.yml). Diagnostics include the handset's model, firmware and settings, but not its address, credentials, MAC, Wi-Fi name or any caller details.

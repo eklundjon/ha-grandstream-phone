@@ -5,6 +5,9 @@
     "@eklundjon"
   ],
   "config_flow": true,
+  "dependencies": [
+    "webhook"
+  ],
   "documentation": "https://github.com/eklundjon/ha-grandstream-phone",
   "integration_type": "device",
   "iot_class": "local_polling",

@@ -30,6 +30,12 @@ def load_fixture(name: str) -> Any:
     return json.loads((FIXTURES / f"{name}.json").read_text())
 
 
+# The handset's event URL settings (P-numbers), as on a WP826.
+EVENT_SLOT_KEYS = (
+    "8310", "8311", "8312", "22171", "8313", "8314", "8315",
+    "8328", "8329", "8316", "8317", "22568", "22570",
+)
+
 # The hardware the fixtures were captured from.
 SOURCE_MODEL = "WP826"
 SOURCE_FIRMWARE = "1.0.3.35"
@@ -104,7 +110,9 @@ class FakePhone:
     password: str = PASSWORD
     values: dict[str, str] = field(
         default_factory=lambda: {
-            c["pvalue"]: c["value"] for c in load_fixture("config_get")["configs"]
+            **{c["pvalue"]: c["value"] for c in load_fixture("config_get")["configs"]},
+            # The event URL settings ("Action URLs"), empty as shipped.
+            **dict.fromkeys(EVENT_SLOT_KEYS, ""),
         }
     )
     # Keys whose writes the handset acknowledges but ignores.

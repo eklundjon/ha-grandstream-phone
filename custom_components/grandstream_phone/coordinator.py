@@ -5,15 +5,17 @@ from __future__ import annotations
 import logging
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
+from datetime import datetime
 from typing import Any
 
 import aiohttp
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util import dt as dt_util
 
 from .api import (
     ROLE_ADMIN,
@@ -26,6 +28,7 @@ from .api import (
     WriteRejected,
 )
 from .const import DEFAULT_SCAN_INTERVAL, DOMAIN, POLLED_KEYS
+from .push import BATTERY_SLOTS, EVENT_SLOTS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -54,6 +57,29 @@ class GrandstreamData:
     battery: dict[str, Any] | None = None
 
 
+@dataclass(frozen=True)
+class PushEvent:
+    """The last event the handset pushed."""
+
+    event: str
+    received: datetime
+    params: dict[str, str]
+
+
+@dataclass
+class PushStatus:
+    """Whether the handset's event URLs point here, and what came in last."""
+
+    # off: not set up (yet), active: our URLs are on the handset,
+    # disabled: device disabled, slots released, slots_in_use: some slots point
+    # elsewhere, no_url: Home Assistant has no internal URL, error: the handset
+    # couldn't be updated.
+    state: str = "off"
+    claimed: list[str] = field(default_factory=list)
+    foreign: list[str] = field(default_factory=list)
+    last_event: PushEvent | None = None
+
+
 class GrandstreamCoordinator(DataUpdateCoordinator[GrandstreamData]):
     """Polls one handset and writes settings to it."""
 
@@ -73,6 +99,7 @@ class GrandstreamCoordinator(DataUpdateCoordinator[GrandstreamData]):
             entry.data[CONF_USERNAME],
             entry.data[CONF_PASSWORD],
         )
+        self.push = PushStatus()
 
     @property
     def login_info(self) -> LoginInfo | None:
@@ -139,6 +166,16 @@ class GrandstreamCoordinator(DataUpdateCoordinator[GrandstreamData]):
         if self.data is not None:
             merged = {**self.data.values, **{str(k): str(v) for k, v in values.items()}}
             self.async_set_updated_data(replace(self.data, values=merged))
+
+    @callback
+    def async_handle_push(self, event: str, params: Mapping[str, str]) -> None:
+        """An event the handset pushed to our webhook."""
+        _LOGGER.debug("Push from %s: %s", self.client.host, event)
+        self.push.last_event = PushEvent(event, dt_util.utcnow(), dict(params))
+        if event in EVENT_SLOTS.values() and event not in BATTERY_SLOTS.values():
+            # Fetch the authoritative state now rather than at the next poll.
+            self.hass.async_create_task(self.async_request_refresh())
+        self.async_update_listeners()
 
     async def async_shutdown(self) -> None:
         await super().async_shutdown()
