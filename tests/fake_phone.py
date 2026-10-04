@@ -111,6 +111,7 @@ class FakePhone:
     values: dict[str, str] = field(
         default_factory=lambda: {
             **{c["pvalue"]: c["value"] for c in load_fixture("config_get")["configs"]},
+            "82269": "0",  # Wi-Fi power save: generic, as shipped
             # The event URL settings ("Action URLs"), empty as shipped.
             **dict.fromkeys(EVENT_SLOT_KEYS, ""),
         }

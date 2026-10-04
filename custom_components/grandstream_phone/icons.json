@@ -77,6 +77,12 @@
         "state": {
           "off": "mdi:minus-circle-off"
         }
+      },
+      "wifi_power_save": {
+        "default": "mdi:wifi-cog",
+        "state": {
+          "off": "mdi:wifi"
+        }
       }
     }
   }

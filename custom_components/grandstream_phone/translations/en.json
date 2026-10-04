@@ -164,6 +164,9 @@
     "switch": {
       "do_not_disturb": {
         "name": "Do not disturb"
+      },
+      "wifi_power_save": {
+        "name": "Wi-Fi power save"
       }
     }
   },

@@ -28,6 +28,7 @@ KEY_RING_VOLUME = "8352"  # 0-10
 KEY_DND = ":dnd"  # 0/1, runtime state
 KEY_UNREAD_VOICEMAIL = ":unread_vm_1"  # account 1
 KEY_ACCOUNT_REGISTERED = "AccountRegistered1"  # 0/1, account 1
+KEY_WIFI_POWER_SAVE = "82269"  # 0 generic PSM, 4 U-APSD, 3 disabled
 
 POLLED_KEYS = (
     KEY_LCD_BRIGHTNESS,
@@ -37,6 +38,7 @@ POLLED_KEYS = (
     KEY_DND,
     KEY_UNREAD_VOICEMAIL,
     KEY_ACCOUNT_REGISTERED,
+    KEY_WIFI_POWER_SAVE,
 )
 
 # Where to report a model that isn't in VERIFIED_MODELS.
