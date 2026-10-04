@@ -1,0 +1,69 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Add a Grandstream phone",
+        "description": "Enter the handset's IP address or hostname. Its web interface must be turned on (handset menu: Settings → Advanced → Security). A DHCP reservation for the handset is recommended.",
+        "data": {
+          "host": "Host"
+        },
+        "data_description": {
+          "host": "For example 192.168.1.50. The integration connects over HTTPS."
+        }
+      },
+      "credentials": {
+        "title": "Log in to the {model}",
+        "description": "Use the handset's `user` web account if you can: it can do everything this integration needs except read battery status, and it can't change security settings. Turn it on and set its password in the handset's web interface (System Settings → Security). The admin account also works.",
+        "data": {
+          "username": "Username",
+          "password": "Password"
+        },
+        "data_description": {
+          "username": "`user` or `admin`. These names are fixed by the handset.",
+          "password": "The handset locks the account after 5 failed logins."
+        }
+      },
+      "unverified_model": {
+        "title": "Untested model: {model}",
+        "description": "This integration has only been tested on: {verified}. The {model} answered like a supported handset, so it will probably work, but some settings or status may be missing or wrong.\n\nIf you continue, please report how it goes, with a diagnostics download attached: {report_url}"
+      },
+      "reauth_confirm": {
+        "title": "Log in to the {model} again",
+        "description": "The handset at {host} rejected the saved credentials. Polling has stopped so repeated attempts don't lock the account.",
+        "data": {
+          "username": "Username",
+          "password": "Password"
+        },
+        "data_description": {
+          "username": "`user` or `admin`.",
+          "password": "The handset locks the account after 5 failed logins."
+        }
+      },
+      "reconfigure": {
+        "title": "Change the {model}'s address",
+        "description": "Enter the handset's new IP address or hostname. The saved credentials are reused.",
+        "data": {
+          "host": "Host"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not reach a Grandstream handset there. Check the address, that the handset is on Wi-Fi, and that its web interface is turned on.",
+      "invalid_auth": "The handset rejected that username or password.",
+      "invalid_auth_attempts": "The handset rejected that username or password. {attempts_left} attempts left before it locks the account.",
+      "account_locked": "The handset has locked this account after too many failed logins. Try again in {minutes} minutes.",
+      "user_access_disabled": "Web access for the `user` account is turned off. Turn it on in the handset's web interface (System Settings → Security), or log in as `admin`."
+    },
+    "abort": {
+      "already_configured": "This handset is already configured. Its address has been updated if it changed.",
+      "reauth_successful": "Logged in again.",
+      "reconfigure_successful": "Address updated.",
+      "wrong_device": "That address belongs to a different handset."
+    }
+  },
+  "exceptions": {
+    "write_rejected": "The handset did not apply the change ({keys}). The account may not be allowed to change that setting.",
+    "auth_failed": "The handset rejected the saved credentials. Re-authenticate the integration.",
+    "cannot_connect": "Could not reach the handset: {error}"
+  }
+}

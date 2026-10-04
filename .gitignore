@@ -12,6 +12,7 @@ build/
 venv/
 .venv/
 .venv-test/
+.venv-min/
 env/
 
 # Pytest

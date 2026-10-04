@@ -121,10 +121,17 @@ async def test_dologin_transport_error_is_not_retried() -> None:
 
 
 async def test_forbidden_without_referer_is_cannot_connect() -> None:
-    # A Referer naming another host is refused like a missing one.
-    client = GrandstreamClient(FakePhone(), "10.0.0.9", USERNAME, PASSWORD)  # type: ignore[arg-type]
+    # What the handset does to a form POST without a same-origin Referer.
+    phone = FakePhone()
+    send = phone.request
+
+    def without_referer(method, url, **kwargs):
+        kwargs["headers"] = {k: v for k, v in kwargs["headers"].items() if k != "Referer"}
+        return send(method, url, **kwargs)
+
+    phone.request = without_referer  # type: ignore[method-assign]
     with pytest.raises(CannotConnect, match="403"):
-        await client.async_login()
+        await _client(phone).async_login()
 
 
 # ---- reading and writing settings ----------------------------------------- #

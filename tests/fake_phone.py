@@ -100,6 +100,9 @@ class FakePhone:
     # Exceptions to raise, in order, before answering any request.
     transport_errors: list[Exception] = field(default_factory=list)
     login_result: str = "success"  # or a fixture name like "login_wrong"
+    # Override what the handset reports, e.g. an untested model or another handset.
+    model: str = SOURCE_MODEL
+    mac: str | None = None
     calls: list[Call] = field(default_factory=list)
     sid: str | None = None
     logins: int = 0
@@ -110,10 +113,15 @@ class FakePhone:
     # ---- aiohttp.ClientSession surface ---------------------------------- #
 
     def request(self, method: str, url: str, **kwargs: Any) -> _Resp:
-        path = urlsplit(url).path
+        parts = urlsplit(url)
+        path = parts.path
         self.calls.append(Call(method, path, kwargs))
         if self.transport_errors:
             raise self.transport_errors.pop(0)
+        # Form POSTs need a same-origin Referer (bare HTML 403 otherwise).
+        referer = kwargs.get("headers", {}).get("Referer", "")
+        if method == "POST" and referer != f"https://{parts.netloc}/":
+            return _Resp(403, "<html><body><h1>Forbidden</h1></body></html>")
         status, payload = self._answer(method, path, kwargs)
         return _Resp(status, payload)
 
@@ -130,11 +138,8 @@ class FakePhone:
         return self.sid is not None and cookie == f"sid={self.sid}"
 
     def _answer(self, method: str, path: str, kwargs: dict[str, Any]) -> tuple[int, Any]:
-        headers = kwargs.get("headers", {})
         if path == "/json/configs/model.define.js":
-            return 200, json.dumps(load_fixture("model_define"))
-        if method == "POST" and not headers.get("Referer", "").startswith(f"https://{HOST}/"):
-            return 403, "<html><body><h1>Forbidden</h1></body></html>"
+            return 200, json.dumps({**load_fixture("model_define"), "model": self.model})
 
         if path == "/cgi-bin/access":
             assert kwargs["data"] == {"access": sha256(USERNAME)}
@@ -187,4 +192,6 @@ class FakePhone:
         body = dict(load_fixture(f"login_{self.role}")["body"])
         body["sid"] = self.sid
         body["role"] = sha256(self.role + self.sid)
+        if self.mac:
+            body["mac"] = self.mac
         return 200, {"response": "success", "body": body}
