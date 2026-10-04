@@ -12,8 +12,13 @@ from .coordinator import GrandstreamConfigEntry, GrandstreamCoordinator
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
-# Entity platforms land in the next pass.
-PLATFORMS: list[Platform] = []
+PLATFORMS = [
+    Platform.BINARY_SENSOR,
+    Platform.NUMBER,
+    Platform.SELECT,
+    Platform.SENSOR,
+    Platform.SWITCH,
+]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: GrandstreamConfigEntry) -> bool:

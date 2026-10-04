@@ -103,6 +103,9 @@ class FakePhone:
     # Override what the handset reports, e.g. an untested model or another handset.
     model: str = SOURCE_MODEL
     mac: str | None = None
+    # Which captured call state the status endpoints report.
+    line_fixture: str = "line_status_idle"
+    phone_fixture: str = "phone_status_available"
     calls: list[Call] = field(default_factory=list)
     sid: str | None = None
     logins: int = 0
@@ -170,8 +173,8 @@ class FakePhone:
             return 200, load_fixture("config_update_ok")
 
         fixtures = {
-            "/cgi-bin/api-get_line_status": "line_status_idle",
-            "/cgi-bin/api-get_phone_status": "phone_status_available",
+            "/cgi-bin/api-get_line_status": self.line_fixture,
+            "/cgi-bin/api-get_phone_status": self.phone_fixture,
             "/cgi-bin/api-get_battery_status": "battery_status",
             "/cgi-bin/api-wifi_status_get": "wifi_status",
             "/cgi-bin/api-get_accounts": "accounts",

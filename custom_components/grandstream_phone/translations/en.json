@@ -61,6 +61,73 @@
       "wrong_device": "That address belongs to a different handset."
     }
   },
+  "entity": {
+    "binary_sensor": {
+      "ringing": {
+        "name": "Ringing"
+      },
+      "in_use": {
+        "name": "In use"
+      },
+      "sip_registered": {
+        "name": "SIP registered"
+      }
+    },
+    "number": {
+      "lcd_brightness": {
+        "name": "LCD brightness"
+      },
+      "ring_volume": {
+        "name": "Ring volume"
+      }
+    },
+    "select": {
+      "backlight_timeout": {
+        "name": "Backlight timeout",
+        "state": {
+          "never": "Never",
+          "15_s": "15 seconds",
+          "30_s": "30 seconds",
+          "1_min": "1 minute",
+          "2_min": "2 minutes",
+          "5_min": "5 minutes",
+          "10_min": "10 minutes",
+          "20_min": "20 minutes",
+          "30_min": "30 minutes"
+        }
+      },
+      "keypad_backlight": {
+        "name": "Keypad backlight",
+        "state": {
+          "off": "Off",
+          "on": "On",
+          "auto": "Auto (ambient light)"
+        }
+      }
+    },
+    "sensor": {
+      "call_state": {
+        "name": "Call state",
+        "state": {
+          "idle": "Idle",
+          "ringing": "Ringing",
+          "connected": "Connected",
+          "on_hold": "On hold"
+        }
+      },
+      "unread_voicemail": {
+        "name": "Unread voicemail"
+      },
+      "wifi_signal": {
+        "name": "Wi-Fi signal"
+      }
+    },
+    "switch": {
+      "do_not_disturb": {
+        "name": "Do not disturb"
+      }
+    }
+  },
   "exceptions": {
     "write_rejected": "The handset did not apply the change ({keys}). The account may not be allowed to change that setting.",
     "auth_failed": "The handset rejected the saved credentials. Re-authenticate the integration.",

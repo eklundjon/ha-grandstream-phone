@@ -1,0 +1,58 @@
+{
+  "entity": {
+    "binary_sensor": {
+      "ringing": {
+        "default": "mdi:phone-ring"
+      },
+      "in_use": {
+        "default": "mdi:phone-in-talk"
+      },
+      "sip_registered": {
+        "default": "mdi:phone-check",
+        "state": {
+          "off": "mdi:phone-remove"
+        }
+      }
+    },
+    "number": {
+      "lcd_brightness": {
+        "default": "mdi:brightness-6"
+      },
+      "ring_volume": {
+        "default": "mdi:volume-high"
+      }
+    },
+    "select": {
+      "backlight_timeout": {
+        "default": "mdi:timer-outline"
+      },
+      "keypad_backlight": {
+        "default": "mdi:dialpad"
+      }
+    },
+    "sensor": {
+      "call_state": {
+        "default": "mdi:phone",
+        "state": {
+          "ringing": "mdi:phone-ring",
+          "connected": "mdi:phone-in-talk",
+          "on_hold": "mdi:phone-paused"
+        }
+      },
+      "unread_voicemail": {
+        "default": "mdi:voicemail"
+      },
+      "wifi_signal": {
+        "default": "mdi:wifi"
+      }
+    },
+    "switch": {
+      "do_not_disturb": {
+        "default": "mdi:minus-circle",
+        "state": {
+          "off": "mdi:minus-circle-off"
+        }
+      }
+    }
+  }
+}

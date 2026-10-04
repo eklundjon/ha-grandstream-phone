@@ -2,7 +2,7 @@
   "response": "success",
   "battery": {
     "status": "Discharging",
-    "capacity": 98,
+    "capacity": 95,
     "present": true,
     "health": "Good"
   }
