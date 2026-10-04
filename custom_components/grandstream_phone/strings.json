@@ -71,6 +71,28 @@
       },
       "sip_registered": {
         "name": "SIP registered"
+      },
+      "battery_low": {
+        "name": "Battery low"
+      },
+      "on_charger": {
+        "name": "On charger"
+      }
+    },
+    "event": {
+      "call": {
+        "name": "Call",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "incoming": "Incoming",
+              "answered": "Answered",
+              "outgoing": "Outgoing",
+              "missed": "Missed",
+              "ended": "Ended"
+            }
+          }
+        }
       }
     },
     "number": {
@@ -120,6 +142,9 @@
       },
       "wifi_signal": {
         "name": "Wi-Fi signal"
+      },
+      "last_pushed_event": {
+        "name": "Last pushed event"
       }
     },
     "switch": {

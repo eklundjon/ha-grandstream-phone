@@ -1,9 +1,10 @@
-"""Sensor entities: call state, voicemail, battery, Wi-Fi signal."""
+"""Sensor entities: call state, voicemail, battery, Wi-Fi signal, last pushed event."""
 
 from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 from homeassistant.components.sensor import (
@@ -93,17 +94,30 @@ SENSORS = (
 )
 
 
+# When the handset last pushed an event. Stays unknown if pushed events never
+# arrive, which is the quickest way to spot a handset that can't reach Home
+# Assistant.
+LAST_EVENT = SensorEntityDescription(
+    key="last_pushed_event",
+    translation_key="last_pushed_event",
+    device_class=SensorDeviceClass.TIMESTAMP,
+    entity_category=EntityCategory.DIAGNOSTIC,
+)
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: GrandstreamConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator = entry.runtime_data
-    async_add_entities(
+    entities: list[SensorEntity] = [
         GrandstreamSensor(coordinator, description)
         for description in SENSORS
         if description.exists_fn(coordinator)
-    )
+    ]
+    entities.append(GrandstreamLastEventSensor(coordinator, LAST_EVENT))
+    async_add_entities(entities)
 
 
 class GrandstreamSensor(GrandstreamEntity, SensorEntity):
@@ -118,3 +132,17 @@ class GrandstreamSensor(GrandstreamEntity, SensorEntity):
     @property
     def native_value(self) -> Any:
         return self.entity_description.value_fn(self.coordinator.data)
+
+
+class GrandstreamLastEventSensor(GrandstreamEntity, SensorEntity):
+    """When the last pushed event arrived, with its event name as an attribute."""
+
+    @property
+    def native_value(self) -> datetime | None:
+        event = self.coordinator.push.last_event
+        return event.received if event is not None else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        event = self.coordinator.push.last_event
+        return {"event": event.event} if event is not None else None

@@ -44,12 +44,16 @@ One device per handset, with these entities:
 | Keypad backlight | select | Off / On / Auto (ambient light sensor) |
 | Do not disturb | switch | |
 | Call state | sensor | Idle / Ringing / Connected / On hold |
+| Call | event | Incoming / Answered / Outgoing / Missed / Ended, with the other party's number and name. Needs [pushed events](#pushed-events) |
 | Ringing | binary sensor | |
 | In use | binary sensor | On during a call, including on hold |
 | Unread voicemail | sensor | Account 1 |
 | Wi-Fi signal | sensor | The handset's 0–4 bars (diagnostic) |
 | SIP registered | binary sensor | Account 1 (diagnostic) |
+| Battery low | binary sensor | From the handset's battery events; works with `user` (diagnostic) |
+| Last pushed event | sensor | When the handset last pushed an event (diagnostic) |
 | Battery | sensor | `admin` account only (diagnostic) |
+| On charger | binary sensor | `admin` account only (diagnostic) |
 
 Some behavior worth knowing:
 
@@ -65,6 +69,10 @@ The handset can request a URL whenever something happens: a call comes in, is an
 - **The handset has to reach Home Assistant** over plain HTTP on your network, at Home Assistant's local URL (Settings → System → Network, or the address Home Assistant detects if that's unset). If there's nothing usable, a Repairs notice says so and the handset is polled only.
 - **It only takes empty URLs, or ones it set itself.** A URL that points somewhere else (another Home Assistant instance with the same handset, or something you set up by hand) is left alone, with a Repairs notice naming the events. The notice offers to take them over.
 - **It removes its URLs when you disable the device or the integration entry, or delete the entry**, so another instance can claim the handset. A restart or reload leaves them in place.
+- **What arrives:**
+  - **Calls** fire the Call event entity, with the other party's number and name as the handset reports them (the name falls back to the number for unknown callers). They also update ringing, in use and call state straight away.
+  - **DND changes** made on the handset update the switch.
+  - **Battery events** drive the battery low sensor. The handset only sends them when the battery crosses its low threshold (20 % by default) going down or its sufficient threshold (60 %) going up, so the sensor is unknown until the first crossing, keeps its state through restarts, and its `level` attribute is only as fresh as the last crossing. For a live percentage, use the `admin` account's battery sensor.
 - Note that the webhook ID in each URL is the only thing protecting it, since the handset can't authenticate. The webhook only accepts requests from your local network, and ignores ones that don't carry this handset's MAC address.
 
 ## Install
