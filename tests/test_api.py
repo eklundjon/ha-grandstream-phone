@@ -146,6 +146,15 @@ async def test_get_values_logs_in_and_sends_sid_cookie() -> None:
     assert get.headers["Cookie"] == f"sid={phone.sid}"
 
 
+async def test_get_values_tells_unknown_keys_from_empty_settings() -> None:
+    # The WP826 answers every key asked for. Unknown ones come back with an
+    # empty value and no alias; an unset event URL is empty but has an alias.
+    phone = FakePhone()
+    phone.values["8316"] = ""
+    values = await _client(phone).async_get_values(["8316", ":dnd", "99999", ":nonsense"])
+    assert values == {"8316": "", ":dnd": "0"}
+
+
 async def test_expired_session_on_config_get_logs_in_again() -> None:
     phone = FakePhone()
     client = _client(phone)
