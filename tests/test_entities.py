@@ -194,12 +194,18 @@ async def test_dnd_switch(hass: HomeAssistant, phone: FakePhone, entry: MockConf
 async def test_rejected_write_is_reported(hass: HomeAssistant, phone: FakePhone, entry: MockConfigEntry) -> None:
     await _setup(hass, entry)
     phone.ignored_writes = {KEY_DND}
-    with pytest.raises(HomeAssistantError):
+    with pytest.raises(HomeAssistantError) as err:
         await hass.services.async_call(
             "switch", "turn_on",
             {"entity_id": _entity_id(hass, "switch", "do_not_disturb")},
             blocking=True,
         )
+    # The translated message reaches the user, placeholders filled in. (HA
+    # drops the final period when it formats the message.)
+    assert str(err.value) == (
+        "The handset did not apply the change (:dnd). "
+        "The account may not be allowed to change that setting"
+    )
     assert _state(hass, "switch", "do_not_disturb") == STATE_OFF
 
 

@@ -129,8 +129,14 @@
     }
   },
   "exceptions": {
-    "write_rejected": "The handset did not apply the change ({keys}). The account may not be allowed to change that setting.",
-    "auth_failed": "The handset rejected the saved credentials. Re-authenticate the integration.",
-    "cannot_connect": "Could not reach the handset: {error}"
+    "write_rejected": {
+      "message": "The handset did not apply the change ({keys}). The account may not be allowed to change that setting."
+    },
+    "auth_failed": {
+      "message": "The handset rejected the saved credentials. Re-authenticate the integration."
+    },
+    "cannot_connect": {
+      "message": "Could not reach the handset: {error}"
+    }
   }
 }
