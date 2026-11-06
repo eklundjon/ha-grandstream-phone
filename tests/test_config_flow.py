@@ -7,6 +7,7 @@ from homeassistant import config_entries
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.grandstream_phone.const import CONF_MODEL, DOMAIN
@@ -119,6 +120,52 @@ async def test_untested_model_asks_first(hass: HomeAssistant, phone: FakePhone) 
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["title"] == "WP836 10"
     assert result["data"][CONF_MODEL] == "WP836"
+
+
+# ---- DHCP discovery -------------------------------------------------------- #
+
+
+def _dhcp(ip: str = HOST) -> DhcpServiceInfo:
+    # The fake handset's MAC, as DHCP discovery reports it.
+    return DhcpServiceInfo(ip=ip, hostname="wp826", macaddress=UNIQUE_ID.replace(":", ""))
+
+
+async def test_dhcp_discovers_handset(hass: HomeAssistant, phone: FakePhone) -> None:
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_DHCP}, data=_dhcp()
+    )
+    assert result["step_id"] == "credentials"
+    assert result["description_placeholders"]["model"] == SOURCE_MODEL
+    flows = hass.config_entries.flow.async_progress()
+    assert flows[0]["context"]["title_placeholders"] == {"name": f"{SOURCE_MODEL} ({HOST})"}
+
+    result = await _credentials(hass, result["flow_id"])
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"][CONF_HOST] == HOST
+    assert result["result"].unique_id == UNIQUE_ID
+
+
+async def test_dhcp_known_handset_new_address(
+    hass: HomeAssistant, phone: FakePhone, entry: MockConfigEntry
+) -> None:
+    entry.add_to_hass(hass)
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_DHCP}, data=_dhcp("192.168.1.77")
+    )
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    assert entry.data[CONF_HOST] == "192.168.1.77"
+    # Recognized by its MAC alone: no need to reach the handset.
+    assert phone.calls == []
+
+
+async def test_dhcp_web_interface_off(hass: HomeAssistant, phone: FakePhone) -> None:
+    phone.transport_errors = [aiohttp.ClientError("a"), aiohttp.ClientError("b")]
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_DHCP}, data=_dhcp()
+    )
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "cannot_connect"
 
 
 # ---- reauth ---------------------------------------------------------------- #

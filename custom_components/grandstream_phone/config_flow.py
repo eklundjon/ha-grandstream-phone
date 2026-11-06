@@ -1,4 +1,4 @@
-"""Config flow: host, then the detected model, then credentials."""
+"""Config flow: host (typed in or discovered over DHCP), then the detected model, then credentials."""
 
 from __future__ import annotations
 
@@ -23,6 +23,7 @@ from homeassistant.helpers.selector import (
     TextSelectorConfig,
     TextSelectorType,
 )
+from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 
 from .api import (
     AccountLocked,
@@ -95,6 +96,21 @@ class GrandstreamConfigFlow(ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema({vol.Required(CONF_HOST): str}),
             errors=errors,
         )
+
+    async def async_step_dhcp(self, discovery_info: DhcpServiceInfo) -> ConfigFlowResult:
+        """A handset showed up on the network (see the dhcp matchers in manifest.json)."""
+        await self.async_set_unique_id(format_mac(discovery_info.macaddress))
+        # A handset that's already set up and got a new address: follow it.
+        self._abort_if_unique_id_configured(updates={CONF_HOST: discovery_info.ip})
+        try:
+            info = await async_get_model_info(async_get_session(self.hass), discovery_info.ip)
+        except CannotConnect:
+            # Web interface off, or not a handset after all.
+            return self.async_abort(reason="cannot_connect")
+        self._host = discovery_info.ip
+        self._model = str(info["model"])
+        self.context["title_placeholders"] = {"name": f"{self._model} ({self._host})"}
+        return await self.async_step_credentials()
 
     async def async_step_credentials(
         self, user_input: dict[str, Any] | None = None
