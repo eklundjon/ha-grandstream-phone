@@ -7,10 +7,14 @@ from __future__ import annotations
 
 import aiohttp
 import pytest
+from homeassistant import config_entries
 from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntryState
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.discovery_flow import DiscoveryKey
+from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.grandstream_phone.const import (
@@ -23,7 +27,15 @@ from custom_components.grandstream_phone.diagnostics import (
 )
 
 from .conftest import UNIQUE_ID
-from .fake_phone import SOURCE_FIRMWARE, SOURCE_MODEL, FakePhone, load_fixture
+from .fake_phone import (
+    HOST,
+    PASSWORD,
+    SOURCE_FIRMWARE,
+    SOURCE_MODEL,
+    USERNAME,
+    FakePhone,
+    load_fixture,
+)
 
 
 async def _setup(hass: HomeAssistant, entry: MockConfigEntry) -> None:
@@ -237,6 +249,30 @@ async def test_diagnostics_redacts_household_details(
     assert diag["data"]["values"][KEY_LCD_BRIGHTNESS] == "60"
     assert diag["data"]["line_status"][0]["state"] == "connected"
     assert diag["data"]["battery"]["capacity"] == load_fixture("battery_status")["battery"]["capacity"]
+
+
+async def test_diagnostics_redacts_discovery_key(hass: HomeAssistant, phone: FakePhone) -> None:
+    # An entry added from DHCP discovery records the MAC as its discovery key,
+    # as Home Assistant's DHCP watcher passes it.
+    mac = UNIQUE_ID.replace(":", "")
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={
+            "source": config_entries.SOURCE_DHCP,
+            "discovery_key": DiscoveryKey(domain="dhcp", key=mac, version=1),
+        },
+        data=DhcpServiceInfo(ip=HOST, hostname="wp826", macaddress=mac),
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_USERNAME: USERNAME, CONF_PASSWORD: PASSWORD}
+    )
+    await hass.async_block_till_done()
+    entry = result["result"]
+    assert entry.discovery_keys
+
+    text = str(await async_get_config_entry_diagnostics(hass, entry))
+    assert mac not in text
+    assert UNIQUE_ID not in text
 
 
 # ---- another login takes the session ----------------------------------------- #
