@@ -1,0 +1,203 @@
+blueprint:
+  name: Grandstream handset night mode
+  description: >-
+    Dims Grandstream handsets at night and restores them in the morning.
+    Optionally shortens the backlight timeout at night, and stops a missed call
+    from keeping a charging handset lit. The handsets apply each change at once
+    without waking a dark screen. Also runs when Home Assistant starts, so a
+    restart overnight still leaves the handsets in night mode.
+  domain: automation
+  author: eklundjon
+  source_url: https://github.com/eklundjon/ha-grandstream-phone/blob/main/blueprints/automation/grandstream_phone/night_mode.yaml
+  homeassistant:
+    min_version: 2025.4.0
+  input:
+    night_start:
+      name: Night starts
+      default: "22:00:00"
+      selector:
+        time: {}
+    night_end:
+      name: Night ends
+      default: "07:00:00"
+      selector:
+        time: {}
+    brightness_entities:
+      name: LCD brightness
+      description: The handsets' LCD brightness entities.
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - integration: grandstream_phone
+              domain: number
+    night_brightness:
+      name: Brightness at night
+      default: 10
+      selector:
+        number:
+          min: 10
+          max: 100
+          step: 10
+          unit_of_measurement: "%"
+    day_brightness:
+      name: Brightness during the day
+      default: 60
+      selector:
+        number:
+          min: 10
+          max: 100
+          step: 10
+          unit_of_measurement: "%"
+    timeout_entities:
+      name: Backlight timeout (optional)
+      description: >-
+        The handsets' backlight timeout entities. Leave empty to keep the
+        timeout as it is.
+      default: []
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - integration: grandstream_phone
+              domain: select
+    night_timeout:
+      name: Backlight timeout at night
+      default: 15_s
+      selector:
+        select:
+          options: &timeouts
+            - label: Never
+              value: never
+            - label: 15 seconds
+              value: 15_s
+            - label: 30 seconds
+              value: 30_s
+            - label: 1 minute
+              value: 1_min
+            - label: 2 minutes
+              value: 2_min
+            - label: 5 minutes
+              value: 5_min
+            - label: 10 minutes
+              value: 10_min
+            - label: 20 minutes
+              value: 20_min
+            - label: 30 minutes
+              value: 30_min
+    day_timeout:
+      name: Backlight timeout during the day
+      default: never
+      selector:
+        select:
+          options: *timeouts
+    missed_call_entities:
+      name: Missed call backlight while charging (optional)
+      description: >-
+        The handsets' missed call backlight entities. Set to "Always on", a
+        missed call keeps a charging handset lit all night whatever the
+        backlight timeout says. Leave empty to keep the setting as it is.
+      default: []
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - integration: grandstream_phone
+              domain: select
+    night_missed_call:
+      name: Missed call backlight at night
+      default: timeout
+      selector:
+        select:
+          options: &missed_call
+            - label: Always on
+              value: always_on
+            - label: Off after backlight timeout
+              value: timeout
+            - label: Dim, always on
+              value: dim
+    day_missed_call:
+      name: Missed call backlight during the day
+      default: always_on
+      selector:
+        select:
+          options: *missed_call
+
+mode: queued
+
+triggers:
+  - trigger: time
+    at: !input night_start
+    id: night
+  - trigger: time
+    at: !input night_end
+    id: day
+  - trigger: homeassistant
+    event: start
+    id: start
+
+variables:
+  timeout_entities: !input timeout_entities
+  missed_call_entities: !input missed_call_entities
+
+actions:
+  # A time condition handles a night that wraps past midnight.
+  - choose:
+      - conditions:
+          - condition: or
+            conditions:
+              - condition: trigger
+                id: night
+              - condition: and
+                conditions:
+                  - condition: trigger
+                    id: start
+                  - condition: time
+                    after: !input night_start
+                    before: !input night_end
+        sequence:
+          - action: number.set_value
+            target:
+              entity_id: !input brightness_entities
+            data:
+              value: !input night_brightness
+            continue_on_error: true
+          - if: "{{ timeout_entities | length > 0 }}"
+            then:
+              - action: select.select_option
+                target:
+                  entity_id: !input timeout_entities
+                data:
+                  option: !input night_timeout
+                continue_on_error: true
+          - if: "{{ missed_call_entities | length > 0 }}"
+            then:
+              - action: select.select_option
+                target:
+                  entity_id: !input missed_call_entities
+                data:
+                  option: !input night_missed_call
+                continue_on_error: true
+    default:
+      - action: number.set_value
+        target:
+          entity_id: !input brightness_entities
+        data:
+          value: !input day_brightness
+        continue_on_error: true
+      - if: "{{ timeout_entities | length > 0 }}"
+        then:
+          - action: select.select_option
+            target:
+              entity_id: !input timeout_entities
+            data:
+              option: !input day_timeout
+            continue_on_error: true
+      - if: "{{ missed_call_entities | length > 0 }}"
+        then:
+          - action: select.select_option
+            target:
+              entity_id: !input missed_call_entities
+            data:
+              option: !input day_missed_call
+            continue_on_error: true
