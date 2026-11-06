@@ -88,6 +88,9 @@
       "sip_registered": {
         "name": "SIP registered"
       },
+      "sip_registered_account": {
+        "name": "Account {account} SIP registered"
+      },
       "battery_low": {
         "name": "Battery low"
       },
@@ -163,6 +166,9 @@
       },
       "unread_voicemail": {
         "name": "Unread voicemail"
+      },
+      "unread_voicemail_account": {
+        "name": "Account {account} unread voicemail"
       },
       "wifi_signal": {
         "name": "Wi-Fi signal"

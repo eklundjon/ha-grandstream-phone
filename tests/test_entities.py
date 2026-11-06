@@ -173,6 +173,54 @@ async def test_select_backlight_timeout(hass: HomeAssistant, phone: FakePhone, e
     assert _state(hass, "select", "backlight_timeout") == "15_s"
 
 
+# ---- SIP accounts beyond the first ---------------------------------------- #
+
+
+async def test_unconfigured_accounts_start_disabled(
+    hass: HomeAssistant, phone: FakePhone, entry: MockConfigEntry
+) -> None:
+    await _setup(hass, entry)
+    registry = er.async_get(hass)
+    for number in (2, 3):
+        for platform, key in (("binary_sensor", "sip_registered"), ("sensor", "unread_voicemail")):
+            entity_id = _entity_id(hass, platform, f"{key}_{number}")
+            assert entity_id is not None, f"no {platform} {key}_{number}"
+            assert registry.async_get(entity_id).disabled_by is er.RegistryEntryDisabler.INTEGRATION
+    # No account 4 on a handset that lists three.
+    assert _entity_id(hass, "binary_sensor", "sip_registered_4") is None
+    polled = "".join(c.kwargs.get("params", {}).get("pvalues", "") for c in phone.calls)
+    assert "AccountRegistered2" in polled
+    assert "AccountRegistered4" not in polled
+
+
+async def test_configured_second_account(
+    hass: HomeAssistant, phone: FakePhone, entry: MockConfigEntry
+) -> None:
+    phone.accounts[1] = {**phone.accounts[1], "sip_id": "20", "reg": 1}
+    phone.values["AccountRegistered2"] = "1"
+    phone.values[":unread_vm_2"] = "3"
+    await _setup(hass, entry)
+    assert _state(hass, "binary_sensor", "sip_registered_2") == STATE_ON
+    assert _state(hass, "sensor", "unread_voicemail_2") == "3"
+    state = hass.states.get(_entity_id(hass, "binary_sensor", "sip_registered_2"))
+    assert state.attributes["friendly_name"].endswith("Account 2 SIP registered")
+    # Account 1 keeps its original entities and names.
+    assert _state(hass, "binary_sensor", "sip_registered") == STATE_ON
+    assert _state(hass, "sensor", "unread_voicemail") == "0"
+
+    phone.values["AccountRegistered2"] = "0"
+    await _refresh(hass, entry)
+    assert _state(hass, "binary_sensor", "sip_registered_2") == STATE_OFF
+
+
+async def test_configured_account_without_voicemail_value(
+    hass: HomeAssistant, phone: FakePhone, entry: MockConfigEntry
+) -> None:
+    phone.accounts[1] = {**phone.accounts[1], "sip_id": "20"}
+    await _setup(hass, entry)
+    assert _state(hass, "sensor", "unread_voicemail_2") == STATE_UNAVAILABLE
+
+
 async def test_select_keypad_backlight(hass: HomeAssistant, phone: FakePhone, entry: MockConfigEntry) -> None:
     await _setup(hass, entry)
     await hass.services.async_call(

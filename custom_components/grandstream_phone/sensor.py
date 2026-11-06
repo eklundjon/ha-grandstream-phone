@@ -17,7 +17,7 @@ from homeassistant.const import PERCENTAGE, EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import KEY_UNREAD_VOICEMAIL
+from .const import KEY_UNREAD_VOICEMAIL, key_unread_voicemail
 from .coordinator import GrandstreamConfigEntry, GrandstreamCoordinator, GrandstreamData
 from .entity import GrandstreamEntity
 
@@ -52,6 +52,8 @@ class GrandstreamSensorDescription(SensorEntityDescription):
     # Whether the handset (or the session's role) provides this at all.
     exists_fn: Callable[[GrandstreamCoordinator], bool] = lambda _: True
     available_fn: Callable[[GrandstreamData], bool] = lambda _: True
+    # SIP account number, for per-account entities beyond account 1.
+    account: int | None = None
 
 
 SENSORS = (
@@ -63,7 +65,7 @@ SENSORS = (
         value_fn=line_state,
     ),
     # Verified on WP826 with UniFi Talk: rises ~16 s after a message is left,
-    # clears while it's being listened to. Account 1 only.
+    # clears while it's being listened to. Account 1; see account_sensors().
     GrandstreamSensorDescription(
         key="unread_voicemail",
         translation_key="unread_voicemail",
@@ -94,6 +96,24 @@ SENSORS = (
 )
 
 
+def account_sensors(coordinator: GrandstreamCoordinator) -> list[GrandstreamSensorDescription]:
+    """Unread voicemail for accounts 2 and up. Account 1 keeps its original entity."""
+    return [
+        GrandstreamSensorDescription(
+            key=f"unread_voicemail_{account.number}",
+            translation_key="unread_voicemail_account",
+            account=account.number,
+            state_class=SensorStateClass.MEASUREMENT,
+            entity_registry_enabled_default=account.configured,
+            value_fn=lambda data, key=key: _int(data.values.get(key)),
+            available_fn=lambda data, key=key: key in data.values,
+        )
+        for account in coordinator.accounts
+        if account.number > 1
+        for key in (key_unread_voicemail(account.number),)
+    ]
+
+
 # When the handset last pushed an event. Stays unknown if pushed events never
 # arrive, which is the quickest way to spot a handset that can't reach Home
 # Assistant.
@@ -113,7 +133,7 @@ async def async_setup_entry(
     coordinator = entry.runtime_data
     entities: list[SensorEntity] = [
         GrandstreamSensor(coordinator, description)
-        for description in SENSORS
+        for description in (*SENSORS, *account_sensors(coordinator))
         if description.exists_fn(coordinator)
     ]
     entities.append(GrandstreamLastEventSensor(coordinator, LAST_EVENT))

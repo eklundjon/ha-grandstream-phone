@@ -55,6 +55,7 @@ async def async_get_config_entry_diagnostics(
                 "update_interval": str(coordinator.update_interval),
                 "backoff_until": coordinator.backoff_until,
             },
+            "accounts": [asdict(account) for account in coordinator.accounts],
             "data": asdict(data) if data else None,
             "push": asdict(coordinator.push),
             "battery_event": asdict(coordinator.battery_event) if coordinator.battery_event else None,

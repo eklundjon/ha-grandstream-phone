@@ -16,7 +16,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
-from .const import KEY_ACCOUNT_REGISTERED
+from .const import KEY_ACCOUNT_REGISTERED, key_account_registered
 from .coordinator import GrandstreamConfigEntry, GrandstreamCoordinator, GrandstreamData
 from .entity import GrandstreamEntity
 from .sensor import line_state
@@ -30,6 +30,8 @@ class GrandstreamBinarySensorDescription(BinarySensorEntityDescription):
     available_fn: Callable[[GrandstreamData], bool] = lambda _: True
     # Whether the handset (or the session's role) provides this at all.
     exists_fn: Callable[[GrandstreamCoordinator], bool] = lambda _: True
+    # SIP account number, for per-account entities beyond account 1.
+    account: int | None = None
 
 
 BINARY_SENSORS = (
@@ -68,6 +70,27 @@ BINARY_SENSORS = (
     ),
 )
 
+def account_binary_sensors(
+    coordinator: GrandstreamCoordinator,
+) -> list[GrandstreamBinarySensorDescription]:
+    """SIP registration for accounts 2 and up. Account 1 keeps its original entity."""
+    return [
+        GrandstreamBinarySensorDescription(
+            key=f"sip_registered_{account.number}",
+            translation_key="sip_registered_account",
+            account=account.number,
+            device_class=BinarySensorDeviceClass.CONNECTIVITY,
+            entity_category=EntityCategory.DIAGNOSTIC,
+            entity_registry_enabled_default=account.configured,
+            is_on_fn=lambda data, key=key: data.values.get(key) == "1",
+            available_fn=lambda data, key=key: key in data.values,
+        )
+        for account in coordinator.accounts
+        if account.number > 1
+        for key in (key_account_registered(account.number),)
+    ]
+
+
 BATTERY_LOW = BinarySensorEntityDescription(
     key="battery_low",
     translation_key="battery_low",
@@ -84,7 +107,7 @@ async def async_setup_entry(
     coordinator = entry.runtime_data
     entities: list[BinarySensorEntity] = [
         GrandstreamBinarySensor(coordinator, description)
-        for description in BINARY_SENSORS
+        for description in (*BINARY_SENSORS, *account_binary_sensors(coordinator))
         if description.exists_fn(coordinator)
     ]
     entities.append(GrandstreamBatteryLow(coordinator, BATTERY_LOW))

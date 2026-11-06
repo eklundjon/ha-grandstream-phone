@@ -35,6 +35,8 @@ from .const import (
     DOMAIN,
     KEY_DND,
     POLLED_KEYS,
+    key_account_registered,
+    key_unread_voicemail,
 )
 from .push import BATTERY_SLOTS, EVENT_SLOTS
 
@@ -84,6 +86,15 @@ class GrandstreamData:
     wifi: dict[str, Any] | None = None
     # None when the session's role can't read it (the `user` account).
     battery: dict[str, Any] | None = None
+
+
+@dataclass(frozen=True)
+class SipAccount:
+    """One of the handset's SIP accounts, as found at setup."""
+
+    number: int
+    # Has a SIP ID. Entities of unconfigured accounts start disabled.
+    configured: bool
 
 
 @dataclass(frozen=True)
@@ -197,6 +208,8 @@ class GrandstreamCoordinator(DataUpdateCoordinator[GrandstreamData]):
         self.backoff_until: datetime | None = None
         self.push = PushStatus()
         self.battery_event: BatteryEvent | None = None
+        self.accounts: list[SipAccount] = []
+        self._polled_keys: tuple[str, ...] = POLLED_KEYS
         # (number, name) of the call in progress, for naming its later events.
         self._caller: tuple[str, str] | None = None
 
@@ -213,10 +226,29 @@ class GrandstreamCoordinator(DataUpdateCoordinator[GrandstreamData]):
         """Log in once before the first poll, so a bad password fails setup."""
         try:
             await self.client.async_login()
+            accounts = await self.client.async_get_accounts()
         except (InvalidAuth, AccountLocked) as err:
             raise ConfigEntryAuthFailed(str(err)) from err
         except GrandstreamError as err:
             raise UpdateFailed(f"Cannot reach the handset: {err}") from err
+        self.accounts = [
+            SipAccount(int(a["id"]), bool(a.get("sip_id")))
+            for a in accounts
+            if isinstance(a, dict) and str(a.get("id", "")).isdigit()
+        ]
+        # Account 1's keys are in POLLED_KEYS already.
+        self._polled_keys = (
+            *POLLED_KEYS,
+            *(
+                key
+                for account in self.accounts
+                if account.number > 1
+                for key in (
+                    key_account_registered(account.number),
+                    key_unread_voicemail(account.number),
+                )
+            ),
+        )
 
     async def _async_update_data(self) -> GrandstreamData:
         if self.backoff_until is not None:
@@ -224,7 +256,7 @@ class GrandstreamCoordinator(DataUpdateCoordinator[GrandstreamData]):
                 return self.data
             self.backoff_until = None
         try:
-            values = await self.client.async_get_values(POLLED_KEYS)
+            values = await self.client.async_get_values(self._polled_keys)
             line_status = await self.client.async_get_line_status()
             phone_status = await self.client.async_get_phone_status()
             wifi = await self.client.async_get_wifi_status()
