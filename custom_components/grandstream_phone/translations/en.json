@@ -139,6 +139,14 @@
           "on": "On",
           "auto": "Auto (ambient light)"
         }
+      },
+      "missed_call_backlight": {
+        "name": "Missed call backlight while charging",
+        "state": {
+          "always_on": "Always on",
+          "timeout": "Off after backlight timeout",
+          "dim": "Dim, always on"
+        }
       }
     },
     "sensor": {

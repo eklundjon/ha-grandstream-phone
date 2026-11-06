@@ -19,6 +19,7 @@ from custom_components.grandstream_phone.const import (
     KEY_DND,
     KEY_KEYPAD_BACKLIGHT,
     KEY_LCD_BRIGHTNESS,
+    KEY_MISSED_CALL_BACKLIGHT,
     KEY_RING_VOLUME,
     KEY_UNREAD_VOICEMAIL,
 )
@@ -59,6 +60,7 @@ async def test_entities_as_user(hass: HomeAssistant, phone: FakePhone, entry: Mo
     assert _state(hass, "number", "ring_volume") == "8.0"
     assert _state(hass, "select", "backlight_timeout") == "never"
     assert _state(hass, "select", "keypad_backlight") == "auto"
+    assert _state(hass, "select", "missed_call_backlight") == "always_on"
     assert _state(hass, "switch", "do_not_disturb") == STATE_OFF
     assert _state(hass, "sensor", "call_state") == "idle"
     assert _state(hass, "sensor", "unread_voicemail") == "0"
@@ -179,6 +181,17 @@ async def test_select_keypad_backlight(hass: HomeAssistant, phone: FakePhone, en
         blocking=True,
     )
     assert phone.values[KEY_KEYPAD_BACKLIGHT] == "0"
+
+
+async def test_select_missed_call_backlight(hass: HomeAssistant, phone: FakePhone, entry: MockConfigEntry) -> None:
+    await _setup(hass, entry)
+    await hass.services.async_call(
+        "select", "select_option",
+        {"entity_id": _entity_id(hass, "select", "missed_call_backlight"), "option": "timeout"},
+        blocking=True,
+    )
+    assert phone.values[KEY_MISSED_CALL_BACKLIGHT] == "1"
+    assert _state(hass, "select", "missed_call_backlight") == "timeout"
 
 
 async def test_dnd_switch(hass: HomeAssistant, phone: FakePhone, entry: MockConfigEntry) -> None:

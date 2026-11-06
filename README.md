@@ -42,6 +42,7 @@ One device per handset, with these entities:
 | Ring volume | number | 0–10 |
 | Backlight timeout | select | Never, 15 s … 30 min |
 | Keypad backlight | select | Off / On / Auto (ambient light sensor) |
+| Missed call backlight while charging | select | Always on / Off after backlight timeout / Dim, always on |
 | Do not disturb | switch | |
 | Wi-Fi power save | switch | Disabled by default; see below |
 | Call state | sensor | Idle / Ringing / Connected / On hold |
@@ -61,6 +62,7 @@ Some behavior worth knowing:
 - **Changes apply immediately and quietly.** On the WP826, a brightness, timeout or DND change takes effect at once without a popup, and doesn't wake a dark screen. That's what makes overnight automations practical.
 - **Status is polled every 30 seconds, and the handset pushes changes in between.** A call or a DND change on the handset makes Home Assistant fetch the new state right away (see [Pushed events](#pushed-events)). Without pushed events, a short ring can come and go between polls.
 - **Every write is checked.** The handset answers "success" even when it ignores a change (e.g. a setting the account isn't allowed to touch), so the integration reads each change back and reports an error if it didn't stick.
+- **A missed call can keep a charging handset lit.** While a missed call is on screen and the handset is charging, the missed call backlight setting takes over from the backlight timeout. Set to "Always on", a handset in its cradle stays lit until someone clears the missed call, overnight included. "Off after backlight timeout" lets it go dark as usual.
 - **No call control**, on purpose: no dialing, answering or hanging up.
 - **Wi-Fi power save trades reachability for battery.** With it on and the screen dark, the handset can take seconds to answer, or miss a poll; with it off, it answers right away and the battery runs down faster. The switch is disabled by default. Enable it if you want automations to decide, e.g. off while the handset is on its charger. Turning it back on restores the power save mode the handset had.
 
