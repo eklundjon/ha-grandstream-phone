@@ -30,6 +30,8 @@ TO_REDACT = {
     "ssid",
     "bssid",
     CONF_WEBHOOK_ID,
+    # A discovered entry's DHCP key, which is the MAC.
+    "discovery_keys",
     # MAC and caller details in the last pushed event.
     "m",
     "r",
