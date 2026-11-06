@@ -83,19 +83,25 @@ The handset can request a URL whenever something happens: a call comes in, is an
 
 ## Install
 
-**HACS (recommended)**
+This isn't in the default catalog, so add it by its repository link. The badge opens it in the Marketplace or in HACS, whichever your Home Assistant has:
 
-This isn't in the HACS default store, so add it as a custom repository:
+[![Open this repository in your Home Assistant instance.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=eklundjon&repository=ha-grandstream-phone&category=integration)
 
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=eklundjon&repository=ha-grandstream-phone&category=integration)
+**Marketplace (Home Assistant 2026.11 and later)**
 
-Click the badge (or in HACS: ⋮ → Custom repositories, add `https://github.com/eklundjon/ha-grandstream-phone` as an Integration), click **Download**, and restart Home Assistant.
+The Marketplace is HACS, built into Home Assistant. Go to Settings → **Marketplace** → **Add from link** (upper right), enter `https://github.com/eklundjon/ha-grandstream-phone`, and select **Add**. If it asks for a type, pick Integration. Then install it from its page. If Home Assistant needs a restart before the integration can load, a repair notice says so.
+
+The first time you add a repository by link, the Marketplace asks you to connect GitHub: it shows a code and a link, and you enter the code on GitHub and approve. The connection only reads public information.
+
+**HACS (Home Assistant before 2026.11)**
+
+In HACS: ⋮ → Custom repositories, add `https://github.com/eklundjon/ha-grandstream-phone` as an Integration, click **Download**, and restart Home Assistant. When you update Home Assistant to 2026.11 or later, it moves to the Marketplace along with everything else HACS installed, and keeps getting updates.
 
 **Manual**
 
 Copy `custom_components/grandstream_phone` into your Home Assistant `config/custom_components/` folder and restart Home Assistant.
 
-Either way, the Grandstream icon only shows up on the integration page after a restart. Clearing the browser cache isn't enough.
+However you install it, the Grandstream icon only shows up on the integration page after a restart. Clearing the browser cache isn't enough.
 
 ## Setup
 
