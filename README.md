@@ -17,7 +17,7 @@ This is an unofficial integration, not affiliated with or endorsed by Grandstrea
   - On firmware 1.0.3.35 the handset allows one web session per account, so if Home Assistant and you both log in as `admin`, each login kicks the other one out. (1.0.1.87 allows several sessions, but logging out of one ends the others, which has much the same effect.) When Home Assistant loses its session like that, it leaves the handset alone for 5 minutes before logging in again, so you get a window in the web interface; entities keep their last values meanwhile and pushed events still arrive. A change made from Home Assistant logs in straight away.
   - `user` can do everything this integration needs except read the battery level, and it can't change the handset's security settings.
 - **Home Assistant 2025.4 or later.**
-- A DHCP reservation for each handset is a good idea. If a handset's address changes anyway, re-adding it updates the existing entry.
+- A DHCP reservation for each handset is a good idea. If a handset's address changes anyway, Home Assistant usually follows it (see [Setup](#setup)).
 
 ## Supported handsets
 
@@ -50,8 +50,10 @@ One device per handset, with these entities:
 | Ringing | binary sensor | |
 | In use | binary sensor | On during a call, including on hold |
 | Unread voicemail | sensor | Account 1 |
+| Account 2 / 3 unread voicemail | sensor | Disabled by default unless the account is set up on the handset |
 | Wi-Fi signal | sensor | The handset's 0–4 bars (diagnostic) |
 | SIP registered | binary sensor | Account 1 (diagnostic) |
+| Account 2 / 3 SIP registered | binary sensor | Disabled by default unless the account is set up (diagnostic) |
 | Battery low | binary sensor | From the handset's battery events; works with `user` (diagnostic) |
 | Last pushed event | sensor | When the handset last pushed an event (diagnostic) |
 | Battery | sensor | `admin` account only (diagnostic) |
@@ -97,7 +99,7 @@ Either way, the Grandstream icon only shows up on the integration page after a r
 
 ## Setup
 
-Settings → Devices & services → **Add integration** → **Grandstream Phone**.
+Home Assistant may find the handset by itself: look under **Discovered** in Settings → Devices & services, and click **Add**. That skips the first step below. Discovery relies on Home Assistant seeing the handset's DHCP requests, which works on most Home Assistant OS installs but not every setup, so don't worry if nothing shows up. Otherwise, Settings → Devices & services → **Add integration** → **Grandstream Phone**.
 
 1. **Host.** The handset's IP address or hostname. Setup reads the model from the handset before asking for credentials.
 2. **Credentials.** Username `user` (or `admin`) and its password.
@@ -108,45 +110,97 @@ Each handset is named after its model and its first SIP account's user ID, e.g. 
 
 If the password changes, the integration makes one login attempt, stops polling, and asks you to re-authenticate. It doesn't retry on its own, because each retry would count toward the lockout. Re-authentication also lets you switch between `user` and `admin`.
 
-If the handset moves to a new address, use **Reconfigure** on the integration entry.
+If the handset moves to a new address, Home Assistant updates the entry when it next sees the handset ask for one over DHCP. If it doesn't, use **Reconfigure** on the integration entry.
 
 The polling interval (30 seconds by default, 10–300) is under **Configure** on the integration entry. With [pushed events](#pushed-events) working, polling mostly catches settings changed on the handset itself, so a longer interval costs little.
 
-## Example: dim the handset at night
+## What you can do with it
+
+Some ideas, from the obvious to the slightly less so. The first four come as blueprints: click the badge to import one, then create an automation from it under Settings → Automations & scenes → Blueprints. The blueprints live in [blueprints/](blueprints/automation/grandstream_phone/).
+
+### Quiet nights
+
+Dim the screens at night and put them back in the morning. Optionally shorten the backlight timeout overnight, and set the missed call backlight to "Off after backlight timeout" so a missed call doesn't keep a cradled handset lit until morning. The changes don't wake a dark screen. The blueprint also runs when Home Assistant starts, so a restart at 2 a.m. doesn't leave the handsets in day mode.
+
+[![Import the blueprint.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Feklundjon%2Fha-grandstream-phone%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fgrandstream_phone%2Fnight_mode.yaml)
+
+### Pause the music when the phone rings
+
+Pause media players when a handset rings (or when a call is answered, if you'd rather), and resume whatever was playing when the call ends. Players that weren't playing are left alone. Needs [pushed events](#pushed-events).
+
+[![Import the blueprint.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Feklundjon%2Fha-grandstream-phone%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fgrandstream_phone%2Fpause_media_during_calls.yaml)
+
+### Missed call alerts
+
+Send a notification, with the caller's name and number, when a call to a handset goes unanswered. Use any notify action: the companion app, a chat service, a TTS announcement. Needs pushed events.
+
+[![Import the blueprint.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Feklundjon%2Fha-grandstream-phone%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fgrandstream_phone%2Fmissed_call_notification.yaml)
+
+### Do not disturb that follows the house
+
+Turn handset DND on and off with another entity: a bedtime toggle, a schedule, a calendar of meetings, a "baby's asleep" helper. Can be inverted (DND on while the entity is off). DND changes made on the handset stick until that entity next changes.
+
+[![Import the blueprint.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Feklundjon%2Fha-grandstream-phone%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fgrandstream_phone%2Fdnd_follows_entity.yaml)
+
+### Flash a light while it rings
+
+For a noisy workshop, a room out of earshot, or anyone who doesn't hear the ring. This one is short enough to write as an automation:
 
 ```yaml
 automation:
-  - alias: "Kitchen phone: night"
+  - alias: "Flash the garage light while the kitchen phone rings"
     triggers:
-      - trigger: time
-        at: "22:30:00"
+      - trigger: state
+        entity_id: binary_sensor.kitchen_phone_ringing
+        to: "on"
     actions:
-      - action: number.set_value
-        target:
-          entity_id: number.kitchen_phone_lcd_brightness
-        data:
-          value: 10
-      - action: select.select_option
-        target:
-          entity_id: select.kitchen_phone_backlight_timeout
-        data:
-          option: 30_s
-  - alias: "Kitchen phone: day"
-    triggers:
-      - trigger: time
-        at: "06:30:00"
-    actions:
-      - action: number.set_value
-        target:
-          entity_id: number.kitchen_phone_lcd_brightness
-        data:
-          value: 60
-      - action: select.select_option
-        target:
-          entity_id: select.kitchen_phone_backlight_timeout
-        data:
-          option: never
+      - repeat:
+          while:
+            - condition: state
+              entity_id: binary_sensor.kitchen_phone_ringing
+              state: "on"
+          sequence:
+            - action: light.turn_on
+              target:
+                entity_id: light.garage
+              data:
+                flash: short
+            - delay: 2
 ```
+
+With pushed events, the ringing sensor turns on as the call comes in, rather than at the next poll.
+
+### Voicemail waiting
+
+The unread voicemail sensor is a count, so a numeric state trigger (above 0) can light a lamp a particular color, show a badge on a dashboard, or remind someone at a set time that messages are waiting.
+
+### Keeping an eye on the handsets
+
+Most of the diagnostic entities are there for this:
+
+- **The phone line is down.** SIP registered going off usually means the PBX, the ATA or the internet connection is down, not the handset. A notification on that (with a few minutes' `for:`, to ride out brief re-registrations) catches it before someone tries to make a call:
+
+  ```yaml
+  automation:
+    - alias: "Phone line down"
+      triggers:
+        - trigger: state
+          entity_id: binary_sensor.kitchen_phone_sip_registered
+          to: "off"
+          for: "00:05:00"
+      actions:
+        - action: notify.notify
+          data:
+            message: "The kitchen phone has lost its phone line."
+  ```
+
+- **Battery low.** The battery low sensor works with the `user` account. It's handy for a handset that lives away from its cradle.
+- **Wi-Fi signal.** The 0–4 bar history shows a handset with a poor spot, or a room that needs an access point.
+- **Unreachable handset.** If Last pushed event stays old while calls are being made, the handset has stopped reaching Home Assistant; the Repairs notices say why when the integration can tell.
+
+### A second account for an intercom
+
+Handsets have more than one SIP account (three on the WP826). If one is set up as a dedicated intercom or door-station line, its SIP registered and unread voicemail sensors turn up next to account 1's. They're disabled by default for accounts that aren't set up; enable them on the device page.
 
 ## Troubleshooting
 

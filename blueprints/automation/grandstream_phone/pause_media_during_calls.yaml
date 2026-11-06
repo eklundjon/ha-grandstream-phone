@@ -1,0 +1,94 @@
+blueprint:
+  name: Pause media during Grandstream calls
+  description: >-
+    Pauses media players when a Grandstream handset rings or a call is
+    answered, and resumes the ones that were playing once the call ends.
+    Needs the integration's pushed events, since the Call event entity only
+    fires with them.
+  domain: automation
+  author: eklundjon
+  source_url: https://github.com/eklundjon/ha-grandstream-phone/blob/main/blueprints/automation/grandstream_phone/pause_media_during_calls.yaml
+  homeassistant:
+    min_version: 2025.4.0
+  input:
+    call_events:
+      name: Handsets
+      description: The handsets' Call event entities.
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - integration: grandstream_phone
+              domain: event
+    media_players:
+      name: Media players
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - domain: media_player
+    pause_on:
+      name: Pause
+      default: incoming
+      selector:
+        select:
+          options:
+            - label: When the phone rings (or a call is placed)
+              value: incoming
+            - label: When a call is answered (or placed)
+              value: answered
+    resume:
+      name: Resume when the call ends
+      default: true
+      selector:
+        boolean: {}
+
+mode: queued
+
+triggers:
+  - trigger: state
+    entity_id: !input call_events
+    not_from:
+      - unavailable
+      - unknown
+    not_to:
+      - unavailable
+      - unknown
+
+variables:
+  media_players: !input media_players
+  pause_on: !input pause_on
+  resume: !input resume
+  event_type: "{{ trigger.to_state.attributes.event_type }}"
+  start_events: >-
+    {{ ['incoming', 'outgoing'] if pause_on == 'incoming' else ['answered', 'outgoing'] }}
+  # One snapshot per automation, so two copies of this blueprint don't collide.
+  snapshot: "{{ this.entity_id | replace('automation.', '') }}_media"
+  snapshot_entity: "scene.{{ snapshot }}"
+  playing: "{{ media_players | select('is_state', 'playing') | list }}"
+
+actions:
+  - choose:
+      - conditions: "{{ event_type in start_events and playing | length > 0 }}"
+        sequence:
+          - if: "{{ resume }}"
+            then:
+              - action: scene.create
+                data:
+                  scene_id: "{{ snapshot }}"
+                  snapshot_entities: "{{ playing }}"
+          - action: media_player.media_pause
+            target:
+              entity_id: "{{ playing }}"
+            continue_on_error: true
+      - conditions: >-
+          {{ resume and event_type in ['ended', 'missed']
+             and snapshot_entity in states.scene | map(attribute='entity_id') | list }}
+        sequence:
+          - action: scene.turn_on
+            target:
+              entity_id: "{{ snapshot_entity }}"
+            continue_on_error: true
+          - action: scene.delete
+            target:
+              entity_id: "{{ snapshot_entity }}"

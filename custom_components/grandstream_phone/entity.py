@@ -28,6 +28,9 @@ class GrandstreamEntity(CoordinatorEntity[GrandstreamCoordinator]):
         entry = coordinator.config_entry
         device_id = entry.unique_id or entry.entry_id
         self._attr_unique_id = f"{device_id}_{description.key}"
+        # Per-account entities name their account ("Account 2 SIP registered").
+        if (account := getattr(description, "account", None)) is not None:
+            self._attr_translation_placeholders = {"account": str(account)}
         # setup registers the device in full; this just links to it.
         self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, device_id)})
 

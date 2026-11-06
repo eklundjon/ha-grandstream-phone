@@ -27,9 +27,22 @@ KEY_KEYPAD_BACKLIGHT = "22234"  # 0 off, 1 on, 2 auto
 KEY_MISSED_CALL_BACKLIGHT = "351"  # 0 always on, 1 timeout, 2 dim; while charging
 KEY_RING_VOLUME = "8352"  # 0-10
 KEY_DND = ":dnd"  # 0/1, runtime state
-KEY_UNREAD_VOICEMAIL = ":unread_vm_1"  # account 1
-KEY_ACCOUNT_REGISTERED = "AccountRegistered1"  # 0/1, account 1
 KEY_WIFI_POWER_SAVE = "82269"  # 0 generic PSM, 4 U-APSD, 3 disabled
+
+
+# Per SIP account (1-3 on WP826). The handset answers these for any account
+# number, including ones it doesn't have, so the account list comes from
+# api-get_accounts instead.
+def key_unread_voicemail(account: int) -> str:
+    return f":unread_vm_{account}"  # seen empty on a WP826 that had no voicemail yet
+
+
+def key_account_registered(account: int) -> str:
+    return f"AccountRegistered{account}"  # 0/1
+
+
+KEY_UNREAD_VOICEMAIL = key_unread_voicemail(1)
+KEY_ACCOUNT_REGISTERED = key_account_registered(1)
 
 POLLED_KEYS = (
     KEY_LCD_BRIGHTNESS,

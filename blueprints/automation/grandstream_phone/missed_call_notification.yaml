@@ -1,0 +1,61 @@
+blueprint:
+  name: Grandstream missed call notification
+  description: >-
+    Runs your notification actions when a call to a Grandstream handset goes
+    unanswered. In the message, `{{ call.caller }}` is the caller's name (or
+    their number if the handset doesn't know the name), `{{ call.number }}` is
+    the number and `{{ call.handset }}` is the handset's name. Needs the
+    integration's pushed events, since the Call event entity only fires with
+    them.
+  domain: automation
+  author: eklundjon
+  source_url: https://github.com/eklundjon/ha-grandstream-phone/blob/main/blueprints/automation/grandstream_phone/missed_call_notification.yaml
+  homeassistant:
+    min_version: 2025.4.0
+  input:
+    call_events:
+      name: Handsets
+      description: The handsets' Call event entities.
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - integration: grandstream_phone
+              domain: event
+    notify:
+      name: Notification
+      description: >-
+        For example a notify action with the message
+        "Missed call from {{ call.caller }} on {{ call.handset }}".
+      selector:
+        action: {}
+
+mode: queued
+
+triggers:
+  - trigger: state
+    entity_id: !input call_events
+    not_from:
+      - unavailable
+      - unknown
+    not_to:
+      - unavailable
+      - unknown
+
+conditions:
+  - "{{ trigger.to_state.attributes.event_type == 'missed' }}"
+
+variables:
+  # One dict rather than separate variables: Home Assistant turns a variable
+  # that looks like a number into one, which drops the "+" from "+15555550100".
+  call: >-
+    {% set number = trigger.to_state.attributes.number | default('', true) | string %}
+    {% set device = device_id(trigger.entity_id) %}
+    {{ {
+      'caller': trigger.to_state.attributes.name | default(number, true) | default('Unknown caller', true),
+      'number': number,
+      'handset': (device_attr(device, 'name_by_user') or device_attr(device, 'name')) if device
+        else state_attr(trigger.entity_id, 'friendly_name'),
+    } }}
+
+actions: !input notify

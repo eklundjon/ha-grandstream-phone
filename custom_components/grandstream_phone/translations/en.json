@@ -1,5 +1,6 @@
 {
   "config": {
+    "flow_title": "{name}",
     "step": {
       "user": {
         "title": "Add a Grandstream phone",
@@ -58,7 +59,8 @@
       "already_configured": "This handset is already configured. Its address has been updated if it changed.",
       "reauth_successful": "Logged in again.",
       "reconfigure_successful": "Address updated.",
-      "wrong_device": "That address belongs to a different handset."
+      "wrong_device": "That address belongs to a different handset.",
+      "cannot_connect": "Found a Grandstream handset but couldn't reach its web interface. Turn it on (on the handset: Settings → Advanced → Security), then add the handset by its address."
     }
   },
   "options": {
@@ -85,6 +87,9 @@
       },
       "sip_registered": {
         "name": "SIP registered"
+      },
+      "sip_registered_account": {
+        "name": "Account {account} SIP registered"
       },
       "battery_low": {
         "name": "Battery low"
@@ -161,6 +166,9 @@
       },
       "unread_voicemail": {
         "name": "Unread voicemail"
+      },
+      "unread_voicemail_account": {
+        "name": "Account {account} unread voicemail"
       },
       "wifi_signal": {
         "name": "Wi-Fi signal"

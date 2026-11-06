@@ -112,11 +112,17 @@ class FakePhone:
         default_factory=lambda: {
             **{c["pvalue"]: c["value"] for c in load_fixture("config_get")["configs"]},
             "82269": "0",  # Wi-Fi power save: generic, as shipped
+            # Accounts 2 and 3 as read from a WP826 that only uses account 1:
+            # not registered, and no voicemail value at all.
+            "AccountRegistered2": "0",
+            "AccountRegistered3": "0",
             "351": "0",  # missed-call backlight: always on, as on the fixture handset
             # The event URL settings ("Action URLs"), empty as shipped.
             **dict.fromkeys(EVENT_SLOT_KEYS, ""),
         }
     )
+    # api-get_accounts body: account 1 configured, 2 and 3 empty, as shipped.
+    accounts: list[dict[str, Any]] = field(default_factory=lambda: load_fixture("accounts")["body"])
     # Keys whose writes the handset acknowledges but ignores.
     ignored_writes: set[str] = field(default_factory=set)
     # Paths only an admin session may use (401 otherwise).
@@ -204,12 +210,15 @@ class FakePhone:
             "/cgi-bin/api-get_phone_status": self.phone_fixture,
             "/cgi-bin/api-get_battery_status": "battery_status",
             "/cgi-bin/api-wifi_status_get": "wifi_status",
-            "/cgi-bin/api-get_accounts": "accounts",
         }
         if path in fixtures:
             if not self._authed(kwargs) or (path in self.admin_only and self.role != "admin"):
                 return 401, "<html><body><h1>Unauthorized</h1></body></html>"
             return 200, load_fixture(fixtures[path])
+        if path == "/cgi-bin/api-get_accounts":
+            if not self._authed(kwargs):
+                return 401, "<html><body><h1>Unauthorized</h1></body></html>"
+            return 200, {"response": "success", "body": self.accounts}
         return 404, "<html><body<h1>Not Found</h1></body></html>"
 
     def _dologin(self, form: dict[str, str]) -> tuple[int, Any]:

@@ -1,0 +1,71 @@
+blueprint:
+  name: Grandstream DND follows an entity
+  description: >-
+    Turns Do not disturb on Grandstream handsets on and off with another
+    entity: a sleep-mode toggle, a schedule, a calendar, a "guests are asleep"
+    binary sensor. Changes made on the handset itself stick until the entity
+    next changes. Also runs when Home Assistant starts.
+  domain: automation
+  author: eklundjon
+  source_url: https://github.com/eklundjon/ha-grandstream-phone/blob/main/blueprints/automation/grandstream_phone/dnd_follows_entity.yaml
+  homeassistant:
+    min_version: 2025.4.0
+  input:
+    control:
+      name: Follow
+      description: DND is on while this entity is on.
+      selector:
+        entity:
+          filter:
+            - domain:
+                - input_boolean
+                - binary_sensor
+                - schedule
+                - calendar
+                - switch
+    dnd_switches:
+      name: Handsets
+      description: The handsets' Do not disturb switches.
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - integration: grandstream_phone
+              domain: switch
+    invert:
+      name: Invert
+      description: DND is on while the entity is off instead.
+      default: false
+      selector:
+        boolean: {}
+
+mode: restart
+
+triggers:
+  - trigger: state
+    entity_id: !input control
+    to:
+      - "on"
+      - "off"
+  - trigger: homeassistant
+    event: start
+
+variables:
+  control: !input control
+  invert: !input invert
+
+conditions:
+  - "{{ states(control) in ['on', 'off'] }}"
+
+actions:
+  - if: "{{ is_state(control, 'on') != invert }}"
+    then:
+      - action: switch.turn_on
+        target:
+          entity_id: !input dnd_switches
+        continue_on_error: true
+    else:
+      - action: switch.turn_off
+        target:
+          entity_id: !input dnd_switches
+        continue_on_error: true
