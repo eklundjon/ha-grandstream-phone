@@ -1,4 +1,4 @@
-"""Select entities: backlight timeout and keypad backlight."""
+"""Select entities: backlight timeout, keypad backlight and missed-call backlight."""
 
 from __future__ import annotations
 
@@ -9,7 +9,11 @@ from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import KEY_BACKLIGHT_TIMEOUT, KEY_KEYPAD_BACKLIGHT
+from .const import (
+    KEY_BACKLIGHT_TIMEOUT,
+    KEY_KEYPAD_BACKLIGHT,
+    KEY_MISSED_CALL_BACKLIGHT,
+)
 from .coordinator import GrandstreamConfigEntry
 from .entity import GrandstreamValueEntity
 
@@ -49,6 +53,16 @@ SELECTS = (
         translation_key="keypad_backlight",
         value_key=KEY_KEYPAD_BACKLIGHT,
         values={"off": "0", "on": "1", "auto": "2"},
+        entity_category=EntityCategory.CONFIG,
+    ),
+    # Applies while a missed call is on screen and the handset is charging.
+    # "Always on" keeps a cradled handset lit all night after a missed call,
+    # whatever the backlight timeout says.
+    GrandstreamSelectDescription(
+        key="missed_call_backlight",
+        translation_key="missed_call_backlight",
+        value_key=KEY_MISSED_CALL_BACKLIGHT,
+        values={"always_on": "0", "timeout": "1", "dim": "2"},
         entity_category=EntityCategory.CONFIG,
     ),
 )

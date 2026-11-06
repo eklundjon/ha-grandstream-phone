@@ -24,6 +24,7 @@ VERIFIED_MODELS = frozenset({"WP826"})
 KEY_LCD_BRIGHTNESS = "334"  # 10-100, steps of 10
 KEY_BACKLIGHT_TIMEOUT = "1413"  # seconds; 0 = never
 KEY_KEYPAD_BACKLIGHT = "22234"  # 0 off, 1 on, 2 auto
+KEY_MISSED_CALL_BACKLIGHT = "351"  # 0 always on, 1 timeout, 2 dim; while charging
 KEY_RING_VOLUME = "8352"  # 0-10
 KEY_DND = ":dnd"  # 0/1, runtime state
 KEY_UNREAD_VOICEMAIL = ":unread_vm_1"  # account 1
@@ -34,6 +35,7 @@ POLLED_KEYS = (
     KEY_LCD_BRIGHTNESS,
     KEY_BACKLIGHT_TIMEOUT,
     KEY_KEYPAD_BACKLIGHT,
+    KEY_MISSED_CALL_BACKLIGHT,
     KEY_RING_VOLUME,
     KEY_DND,
     KEY_UNREAD_VOICEMAIL,

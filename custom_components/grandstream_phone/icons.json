@@ -50,6 +50,9 @@
       },
       "keypad_backlight": {
         "default": "mdi:dialpad"
+      },
+      "missed_call_backlight": {
+        "default": "mdi:phone-missed"
       }
     },
     "sensor": {
