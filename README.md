@@ -1,6 +1,6 @@
 # Grandstream Phone for Home Assistant
 
-[![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz/docs/faq/custom_repositories/)
+[![HACS Default](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://www.home-assistant.io/integrations/marketplace/)
 [![HA Version](https://img.shields.io/badge/Home%20Assistant-2025.4+-blue.svg?logo=homeassistant)](https://www.home-assistant.io)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -83,19 +83,17 @@ The handset can request a URL whenever something happens: a call comes in, is an
 
 ## Install
 
-This isn't in the default catalog, so add it by its repository link. The badge opens it in the Marketplace or in HACS, whichever your Home Assistant has:
+It's in the default catalog of the Marketplace (and of HACS before it), so you can find it by name. The badge opens it directly:
 
 [![Open this repository in your Home Assistant instance.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=eklundjon&repository=ha-grandstream-phone&category=integration)
 
 **Marketplace (Home Assistant 2026.11 and later)**
 
-The Marketplace is HACS, built into Home Assistant. Go to Settings → **Marketplace** → **Add from link** (upper right), enter `https://github.com/eklundjon/ha-grandstream-phone`, and select **Add**. If it asks for a type, pick Integration. Then install it from its page. If Home Assistant needs a restart before the integration can load, a repair notice says so.
-
-The first time you add a repository by link, the Marketplace asks you to connect GitHub: it shows a code and a link, and you enter the code on GitHub and approve. The connection only reads public information.
+Go to Settings → **Marketplace**, search for **Grandstream Phone**, open it and install it. If Home Assistant needs a restart before the integration can load, a repair notice says so.
 
 **HACS (Home Assistant before 2026.11)**
 
-In HACS: ⋮ → Custom repositories, add `https://github.com/eklundjon/ha-grandstream-phone` as an Integration, click **Download**, and restart Home Assistant. When you update Home Assistant to 2026.11 or later, it moves to the Marketplace along with everything else HACS installed, and keeps getting updates.
+Search HACS for **Grandstream Phone**, open it, click **Download**, and restart Home Assistant. When you update Home Assistant to 2026.11 or later, it moves to the Marketplace along with everything else HACS installed, and keeps getting updates.
 
 **Manual**
 
