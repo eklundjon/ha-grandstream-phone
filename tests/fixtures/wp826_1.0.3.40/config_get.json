@@ -1,0 +1,109 @@
+{
+  "configs": [
+    {
+      "alias": "lcd.backlight.timeout",
+      "pvalue": "1413",
+      "value": "30"
+    },
+    {
+      "alias": "ons.actionUrl.answerNewInCall",
+      "pvalue": "22171",
+      "value": "http://192.168.1.16:8123/api/webhook/0123456789abcdef0123456789abcdef?e=answered&m=$mac&r=$remote&n=$display_remote"
+    },
+    {
+      "alias": "key.backlight.enable",
+      "pvalue": "22234",
+      "value": "2"
+    },
+    {
+      "alias": "ons.actionUrl.batteryLow",
+      "pvalue": "22568",
+      "value": "http://192.168.1.16:8123/api/webhook/0123456789abcdef0123456789abcdef?e=battery_low&m=$mac&b=$battery&l=$level"
+    },
+    {
+      "alias": "ons.actionUrl.batterySufficient",
+      "pvalue": "22570",
+      "value": "http://192.168.1.16:8123/api/webhook/0123456789abcdef0123456789abcdef?e=battery_ok&m=$mac&b=$battery&l=$level"
+    },
+    {
+      "alias": "lcd.backlight.brightness.active",
+      "pvalue": "334",
+      "value": "60"
+    },
+    {
+      "alias": "ons.actionUrl.incomingCall",
+      "pvalue": "8310",
+      "value": "http://192.168.1.16:8123/api/webhook/0123456789abcdef0123456789abcdef?e=incoming&m=$mac&r=$remote&n=$display_remote"
+    },
+    {
+      "alias": "ons.actionUrl.outgoingCall",
+      "pvalue": "8311",
+      "value": "http://192.168.1.16:8123/api/webhook/0123456789abcdef0123456789abcdef?e=outgoing&m=$mac&r=$remote&n=$display_remote"
+    },
+    {
+      "alias": "ons.actionUrl.missedCall",
+      "pvalue": "8312",
+      "value": "http://192.168.1.16:8123/api/webhook/0123456789abcdef0123456789abcdef?e=missed&m=$mac&r=$remote&n=$display_remote"
+    },
+    {
+      "alias": "ons.actionUrl.establishedCall",
+      "pvalue": "8313",
+      "value": "http://192.168.1.16:8123/api/webhook/0123456789abcdef0123456789abcdef?e=established&m=$mac&r=$remote&n=$display_remote"
+    },
+    {
+      "alias": "ons.actionUrl.terminatedCall",
+      "pvalue": "8314",
+      "value": "http://192.168.1.16:8123/api/webhook/0123456789abcdef0123456789abcdef?e=terminated&m=$mac&r=$remote&n=$display_remote"
+    },
+    {
+      "alias": "ons.actionUrl.rejectIncomingCall",
+      "pvalue": "8315",
+      "value": "http://192.168.1.16:8123/api/webhook/0123456789abcdef0123456789abcdef?e=rejected&m=$mac&r=$remote&n=$display_remote"
+    },
+    {
+      "alias": "ons.actionUrl.openDnd",
+      "pvalue": "8316",
+      "value": "http://192.168.1.16:8123/api/webhook/0123456789abcdef0123456789abcdef?e=dnd_on&m=$mac"
+    },
+    {
+      "alias": "ons.actionUrl.closedDnd",
+      "pvalue": "8317",
+      "value": "http://192.168.1.16:8123/api/webhook/0123456789abcdef0123456789abcdef?e=dnd_off&m=$mac"
+    },
+    {
+      "alias": "ons.actionUrl.idleToBusy",
+      "pvalue": "8328",
+      "value": "http://192.168.1.16:8123/api/webhook/0123456789abcdef0123456789abcdef?e=busy&m=$mac"
+    },
+    {
+      "alias": "ons.actionUrl.busyToIdle",
+      "pvalue": "8329",
+      "value": "http://192.168.1.16:8123/api/webhook/0123456789abcdef0123456789abcdef?e=idle&m=$mac"
+    },
+    {
+      "alias": "audio.volume.ring",
+      "pvalue": "8352",
+      "value": "9"
+    },
+    {
+      "alias": "",
+      "pvalue": ":dnd",
+      "value": "0"
+    },
+    {
+      "alias": "",
+      "pvalue": ":unread_vm_1",
+      "value": ""
+    },
+    {
+      "alias": "",
+      "pvalue": "AccountRegistered1",
+      "value": "1"
+    },
+    {
+      "alias": "audio.volume.speaker",
+      "pvalue": "sp_vol",
+      "value": "6"
+    }
+  ]
+}

@@ -14,7 +14,7 @@ This is an unofficial integration, not affiliated with or endorsed by Grandstrea
 
 - **Turn on the handset's web interface** if it's off: on the handset, Settings → Advanced → Security.
 - **Give Home Assistant the handset's `user` account, not `admin`.** In the handset's web interface (System Settings → Security), turn on user web access and set a user password.
-  - On firmware 1.0.3.35 and 1.0.1.71 the handset allows one web session per account, so if Home Assistant and you both log in as `admin`, each login kicks the other one out. (1.0.1.87 allows several sessions, but logging out of one ends the others, which has much the same effect.) When Home Assistant loses its session like that, it leaves the handset alone for 5 minutes before logging in again, so you get a window in the web interface; entities keep their last values meanwhile and pushed events still arrive. A change made from Home Assistant logs in straight away.
+  - On firmware 1.0.3.35, 1.0.3.40 and 1.0.1.71 the handset allows one web session per account, so if Home Assistant and you both log in as `admin`, each login kicks the other one out. (1.0.1.87 allows several sessions, but logging out of one ends the others, which has much the same effect.) When Home Assistant loses its session like that, it leaves the handset alone for 5 minutes before logging in again, so you get a window in the web interface; entities keep their last values meanwhile and pushed events still arrive. A change made from Home Assistant logs in straight away.
   - `user` can do everything this integration needs except read the battery level, and it can't change the handset's security settings.
 - **Home Assistant 2025.4 or later.**
 - A DHCP reservation for each handset is a good idea. If a handset's address changes anyway, Home Assistant usually follows it (see [Setup](#setup)).
@@ -23,6 +23,7 @@ This is an unofficial integration, not affiliated with or endorsed by Grandstrea
 
 | Model | Firmware | Status | Tested by |
 |---|---|---|---|
+| WP826 | 1.0.3.40 | Verified 2026-11-23 as `user`: every entity, settings writes, pushed events (incoming, outgoing and intercom calls, DND, battery) | [@eklundjon](https://github.com/eklundjon) |
 | WP826 | 1.0.3.35 | Verified 2026-10-04: every entity, setup, re-authentication | [@eklundjon](https://github.com/eklundjon) |
 | WP826 | 1.0.1.87 | Verified 2026-10-04 as `user`: every entity, setup, pushed events | [@eklundjon](https://github.com/eklundjon) |
 | WP826 | 1.0.1.71 | Verified 2026-11-22 as `user`: every entity, setup, pushed events. Needs this release or later: earlier ones stop polling after the handset's session ends, and report no level with battery events | [@eklundjon](https://github.com/eklundjon) |
