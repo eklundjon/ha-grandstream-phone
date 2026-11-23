@@ -22,6 +22,7 @@ from custom_components.grandstream_phone.api import (
     PermissionDenied,
     SessionTakenOver,
     WriteRejected,
+    _is_blank_session,
     async_get_model_info,
 )
 
@@ -143,8 +144,17 @@ async def test_get_values_logs_in_and_sends_sid_cookie() -> None:
     values = await _client(phone).async_get_values(["334", ":dnd", "sp_vol", "99999"])
     assert values == {"334": "60", ":dnd": "0", "sp_vol": "8"}
     get = phone.calls_to("/cgi-bin/config_get")[0]
-    assert get.kwargs["params"] == {"pvalues": "334,:dnd,sp_vol,99999"}
+    # The backlight timeout (1413) rides along to spot a dead session; it's
+    # left out of the result unless asked for.
+    assert get.kwargs["params"] == {"pvalues": "334,:dnd,sp_vol,99999,1413"}
     assert get.headers["Cookie"] == f"sid={phone.sid}"
+
+
+async def test_probe_key_is_not_sent_twice() -> None:
+    phone = FakePhone()
+    # 0 means "never": a value, so the session isn't taken for dead.
+    assert await _client(phone).async_get_values(["1413", "334"]) == {"1413": "0", "334": "60"}
+    assert phone.calls_to("/cgi-bin/config_get")[0].kwargs["params"] == {"pvalues": "1413,334"}
 
 
 async def test_get_values_tells_unknown_keys_from_empty_settings() -> None:
@@ -163,6 +173,26 @@ async def test_expired_session_on_config_get_logs_in_again() -> None:
     phone.expire_session()
     assert await client.async_get_values(["334"]) == {"334": "60"}
     assert phone.logins == 2
+
+
+async def test_blank_answer_from_dead_session_logs_in_again() -> None:
+    # 1.0.1.71 answers config_get on a dead session as usual, with every value
+    # empty, instead of with a session-expired body.
+    phone = FakePhone(dead_session="blank")
+    client = _client(phone)
+    await client.async_get_values(["334"])
+    phone.expire_session()
+    assert await client.async_get_values(["334", "8316"]) == {"334": "60", "8316": ""}
+    assert phone.logins == 2
+
+
+def test_blank_session_fixture_is_detected() -> None:
+    kicked = load_fixture("wp826_1.0.1.71/config_get_kicked")
+    live = load_fixture("wp826_1.0.1.71/config_get")
+    assert _is_blank_session(kicked)
+    assert not _is_blank_session(live)
+    # A handset without the probe setting answers it with no alias: not dead.
+    assert not _is_blank_session({"configs": [{"alias": "", "pvalue": "1413", "value": ""}]})
 
 
 async def test_set_values_writes_and_reads_back() -> None:
@@ -323,6 +353,21 @@ async def test_session_lost_right_after_use_is_a_takeover() -> None:
     with pytest.raises(SessionTakenOver):
         await client.async_get_values(["334"])
     assert phone.logins == 1  # didn't take it back
+
+
+async def test_blank_session_right_after_use_is_a_takeover() -> None:
+    # Before the fix, the blank answer counted as a success and the next api-*
+    # 401 looked like a fresh takeover, so polling backed off for good.
+    phone, clock = FakePhone(dead_session="blank"), _Clock()
+    client = GrandstreamClient(phone, HOST, USERNAME, PASSWORD, takeover_window=120, clock=clock)  # type: ignore[arg-type]
+    await client.async_get_values(["334"])
+    phone.expire_session()
+    clock.now += 30
+    with pytest.raises(SessionTakenOver):
+        await client.async_get_values(["334"])
+    clock.now += 600
+    assert await client.async_get_values(["334"]) == {"334": "60"}
+    assert phone.logins == 2
 
 
 async def test_session_lost_after_idle_logs_in_again() -> None:

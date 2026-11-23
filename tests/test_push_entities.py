@@ -205,6 +205,20 @@ async def test_battery_low_follows_crossings(
     assert _state(hass, "binary_sensor", "battery_low").state == STATE_OFF
 
 
+async def test_battery_level_falls_back_to_level_variable(
+    hass: HomeAssistant, hass_client_no_auth, phone: FakePhone, entry: MockConfigEntry
+) -> None:
+    # 1.0.1.71 sends $battery empty; $level arrives as e.g. "82%".
+    await _setup(hass, entry)
+    client = await hass_client_no_auth()
+
+    await _push(hass, client, entry, "battery_low", b="", l="82%")
+    assert _state(hass, "binary_sensor", "battery_low").attributes["level"] == 82
+
+    await _push(hass, client, entry, "battery_low", b="19", l="19%")
+    assert _state(hass, "binary_sensor", "battery_low").attributes["level"] == 19
+
+
 async def test_battery_low_restores_after_restart(
     hass: HomeAssistant, phone: FakePhone, entry: MockConfigEntry
 ) -> None:

@@ -1,0 +1,11 @@
+{
+  "response": "success",
+  "body": {
+    "sid": "0123456789abcdef0123",
+    "role": "e41ad1d347d87e7a6eb7caa3c8d91760f27d9326e043d605a76d99d1a649910a",
+    "ver": "1.0.1.71",
+    "mac": "00:0B:82:12:34:56",
+    "defaultAuth": false,
+    "defaultLogin": false
+  }
+}
