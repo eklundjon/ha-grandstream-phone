@@ -46,7 +46,7 @@ BINARY_SENSORS = (
         key="in_use",
         translation_key="in_use",
         is_on_fn=lambda data: (
-            data.phone_status == "busy" or line_state(data) in ("connected", "on_hold")
+            data.phone_status == "busy" or line_state(data) in ("connected", "dialing", "on_hold")
         ),
     ),
     GrandstreamBinarySensorDescription(

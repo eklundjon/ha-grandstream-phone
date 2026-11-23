@@ -11,18 +11,21 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from homeassistant.config_entries import ConfigEntryDisabler
 from homeassistant.const import CONF_WEBHOOK_ID, STATE_OFF, STATE_ON, STATE_UNKNOWN
-from homeassistant.core import HomeAssistant, State
+from homeassistant.core import Event, HomeAssistant, State, callback
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.event import async_track_state_change_event
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
     mock_restore_cache,
 )
 
+from custom_components.grandstream_phone.binary_sensor import BINARY_SENSORS
 from custom_components.grandstream_phone.const import DOMAIN, KEY_DND
 from custom_components.grandstream_phone.coordinator import GrandstreamData, apply_push
 from custom_components.grandstream_phone.diagnostics import (
     async_get_config_entry_diagnostics,
 )
+from custom_components.grandstream_phone.sensor import line_state
 
 from .conftest import UNIQUE_ID
 from .fake_phone import FakePhone, load_fixture
@@ -103,10 +106,23 @@ def test_apply_missed_and_idle() -> None:
     assert data.phone_status == "available"
 
 
-def test_apply_outgoing_connects_a_line() -> None:
-    data = apply_push(_data("idle", "idle"), "outgoing", {"r": "*86", "n": "*86"})
-    assert _states(data) == ["connected", "idle"]
+def test_apply_outgoing_dials_then_connects() -> None:
+    far_end = {"r": "*86", "n": "*86"}
+    data = apply_push(_data("idle", "idle"), "outgoing", far_end)
+    assert _states(data) == ["ringback", "idle"]
+    assert line_state(data) == "dialing"
     assert data.phone_status == "busy"
+
+    data = apply_push(data, "established", far_end)
+    assert _states(data) == ["connected", "idle"]
+
+
+def test_apply_outgoing_after_a_poll_keeps_one_line() -> None:
+    # A poll can see the call ringing out before the push arrives.
+    data = _data("ringback", "idle", phone="busy")
+    data = apply_push(data, "outgoing", {"r": "40", "n": "40"})
+    assert _states(data) == ["ringback", "idle"]
+    assert data.line_status[0]["remotenumber"] == "40"
 
 
 def test_apply_hang_up_leaves_other_calls() -> None:
@@ -150,6 +166,114 @@ async def test_call_events_fire_with_caller_details(
     state = _state(hass, "event", "call")
     assert state.attributes["event_type"] == "ended"
     assert state.attributes["name"] == "Kitchen Phone"
+
+
+async def test_outgoing_call_ends_with_the_far_end(
+    hass: HomeAssistant, hass_client_no_auth, phone: FakePhone, entry: MockConfigEntry
+) -> None:
+    # After an outgoing call, the hang-up reports the handset's own number and
+    # name (seen on 1.0.1.71 and 1.0.3.35). The entity reports who was called.
+    await _setup(hass, entry)
+    client = await hass_client_no_auth()
+
+    await _push(hass, client, entry, "outgoing", r="21", n="21")
+    await _push(hass, client, entry, "terminated", r="30", n="Bedroom Phone")
+    state = _state(hass, "event", "call")
+    assert state.attributes["event_type"] == "ended"
+    assert (state.attributes["number"], state.attributes["name"]) == ("21", "21")
+
+    # The next incoming call is reported as sent, hang-up included.
+    await _push(hass, client, entry, "incoming", **CALLER)
+    await _push(hass, client, entry, "terminated", **CALLER)
+    state = _state(hass, "event", "call")
+    assert (state.attributes["number"], state.attributes["name"]) == ("10", "Kitchen Phone")
+
+
+async def test_outgoing_call_cancelled_while_ringing_ends(
+    hass: HomeAssistant, hass_client_no_auth, phone: FakePhone, entry: MockConfigEntry
+) -> None:
+    # Hanging up before the far end answers sends idle alone, no terminated.
+    await _setup(hass, entry)
+    client = await hass_client_no_auth()
+    entity_id = _entity_id(hass, "event", "call")
+    fired: list[tuple[str, str, str]] = []
+
+    @callback
+    def record(event: Event) -> None:
+        a = event.data["new_state"].attributes
+        fired.append((a["event_type"], a["number"], a["name"]))
+
+    async_track_state_change_event(hass, entity_id, record)
+
+    await _push(hass, client, entry, "outgoing", r="30", n="30")
+    await _push(hass, client, entry, "idle")
+    assert fired == [("outgoing", "30", "30"), ("ended", "30", "30")]
+
+    # A call that connected ends once, on terminated; the idle after it adds nothing.
+    fired.clear()
+    await _push(hass, client, entry, "outgoing", r="31", n="31")
+    await _push(hass, client, entry, "established", r="31", n="31")
+    await _push(hass, client, entry, "terminated", r="40", n="Office Phone")
+    await _push(hass, client, entry, "idle")
+    assert fired == [("outgoing", "31", "31"), ("ended", "31", "31")]
+
+    # A missed incoming call goes idle just before missed (1.0.3.40). That idle
+    # ends nothing, and the caller's name survives it for a missed event that
+    # carries the number as the name (as 1.0.1.87's hang-ups do).
+    fired.clear()
+    await _push(hass, client, entry, "incoming", **CALLER)
+    await _push(hass, client, entry, "idle")
+    await _push(hass, client, entry, "missed", r="10", n="10")
+    assert fired == [("incoming", "10", "Kitchen Phone"), ("missed", "10", "Kitchen Phone")]
+
+
+async def test_repeated_call_event_is_dropped(
+    hass: HomeAssistant, hass_client_no_auth, phone: FakePhone, entry: MockConfigEntry, freezer
+) -> None:
+    # 1.0.3.35 sends outgoing twice, ~35 ms apart. The repeat would fire the
+    # event again and mark a second line as dialing.
+    await _setup(hass, entry)
+    client = await hass_client_no_auth()
+    coordinator = entry.runtime_data
+    fired: list[str] = []
+
+    @callback
+    def record(event: Event) -> None:
+        fired.append(event.data["new_state"].attributes["event_type"])
+
+    async_track_state_change_event(hass, _entity_id(hass, "event", "call"), record)
+
+    with patch.object(coordinator, "async_request_refresh", AsyncMock()):
+        await _push(hass, client, entry, "outgoing", r="40", n="40")
+        await _push(hass, client, entry, "outgoing", r="40", n="40")
+        assert fired == ["outgoing"]
+        assert _states(coordinator.data).count("ringback") == 1
+
+        # The same call placed again later is a new call.
+        await _push(hass, client, entry, "idle")
+        freezer.tick(2)
+        await _push(hass, client, entry, "outgoing", r="40", n="40")
+    assert fired == ["outgoing", "ended", "outgoing"]
+
+
+@pytest.mark.parametrize(
+    ("states", "expected"),
+    [
+        (("ringback", "idle"), "dialing"),
+        (("dialing",), "dialing"),
+        (("calling",), "dialing"),
+        (("conference",), "connected"),
+        (("onhold", "dialing"), "dialing"),  # e.g. calling someone to transfer to
+        (("ringing", "connected"), "ringing"),
+        (("idle", "idle"), "idle"),
+        (("failed",), None),
+    ],
+)
+def test_line_state_from_raw_states(states: tuple[str, ...], expected: str | None) -> None:
+    data = _data(*states)
+    assert line_state(data) == expected
+    in_use = next(d for d in BINARY_SENSORS if d.key == "in_use")
+    assert in_use.is_on_fn(data) == (expected in ("connected", "dialing", "on_hold"))
 
 
 async def test_non_call_events_do_not_fire_call_events(

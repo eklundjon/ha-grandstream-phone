@@ -58,6 +58,13 @@ CALL_EVENT_TYPES = {
 # another login (polls keep an idle session alive), so leave the handset alone
 # for a while instead of taking it straight back.
 TAKEOVER_WINDOW = timedelta(minutes=2)
+
+# The handset sends some call events twice, a few tens of ms apart (outgoing on
+# 1.0.3.35); an identical one within this long is that repeat.
+REPEAT_WINDOW = timedelta(seconds=1)
+
+# Line states of an outgoing call not yet answered (the call state sensor's Dialing).
+DIALING_STATES = ("dialing", "calling", "ringback")
 TAKEOVER_BACKOFF = timedelta(minutes=5)
 
 
@@ -152,14 +159,23 @@ def apply_push(data: GrandstreamData, event: str, params: Mapping[str, str]) -> 
                 return line
         return None
 
+    def dialing() -> dict[str, Any] | None:
+        return next((line for line in lines if line.get("state") in DIALING_STATES), None)
+
     if event == "incoming":
         line = first("idle")
         if line is not None:
             line.update(state="ringing", remotenumber=number, remotename="")
         if phone == "available":
             phone = "ringing"
-    elif event in ("answered", "established", "outgoing"):
-        line = first("ringing") or first("idle")
+    elif event == "outgoing":
+        # It rings at the far end until established; the handset calls that ringback.
+        line = dialing() or first("idle")
+        if line is not None:
+            line.update(state="ringback", remotenumber=number)
+        phone = "busy"
+    elif event in ("answered", "established"):
+        line = first("ringing") or dialing() or first("idle")
         if line is not None:
             line.update(state="connected", remotenumber=number or line.get("remotenumber", ""))
         phone = "busy"
@@ -210,8 +226,10 @@ class GrandstreamCoordinator(DataUpdateCoordinator[GrandstreamData]):
         self.battery_event: BatteryEvent | None = None
         self.accounts: list[SipAccount] = []
         self._polled_keys: tuple[str, ...] = POLLED_KEYS
-        # (number, name) of the call in progress, for naming its later events.
-        self._caller: tuple[str, str] | None = None
+        # (number, name, outgoing) of the call in progress, for its later events.
+        self._caller: tuple[str, str, bool] | None = None
+        # (event, number, name, received) of the last call event, to drop repeats.
+        self._last_call_push: tuple[str, str, str, datetime] | None = None
 
     @property
     def login_info(self) -> LoginInfo | None:
@@ -338,12 +356,35 @@ class GrandstreamCoordinator(DataUpdateCoordinator[GrandstreamData]):
             return
 
         if event in CALL_EVENT_TYPES:
+            key = (event, params.get("r", ""), params.get("n", ""))
+            last = self._last_call_push
+            if last is not None and last[:3] == key and now - last[3] < REPEAT_WINDOW:
+                _LOGGER.debug("Ignoring repeated %s from %s", event, self.client.host)
+                return
+            self._last_call_push = (*key, now)
+
+        if event == "idle" and self._caller is not None and self._caller[2]:
+            # An outgoing call hung up before it was answered ends with idle
+            # alone, no terminated. A terminated would have cleared the call.
+            # An incoming call is left alone: its idle comes just before missed.
+            number, name, _ = self._caller
+            self._caller = None
+            async_dispatcher_send(
+                self.hass,
+                signal_call(self.config_entry.entry_id),
+                CALL_EVENT_TYPES["terminated"],
+                {"number": number, "name": name},
+            )
+        if event in CALL_EVENT_TYPES:
+            attributes = self._call_attributes(event, params)
             async_dispatcher_send(
                 self.hass,
                 signal_call(self.config_entry.entry_id),
                 CALL_EVENT_TYPES[event],
-                self._call_attributes(event, params),
+                attributes,
             )
+            # Match the hang-up to the right line by the corrected number.
+            params = {**params, "r": attributes["number"]}
         if self.data is not None:
             updated = apply_push(self.data, event, params)
             if updated is not self.data:
@@ -354,16 +395,23 @@ class GrandstreamCoordinator(DataUpdateCoordinator[GrandstreamData]):
         self.async_update_listeners()
 
     def _call_attributes(self, event: str, params: Mapping[str, str]) -> dict[str, str]:
-        """Caller details for a call event.
+        """The other party's details for a call event.
 
-        On 1.0.1.87 the hang-up event reports the number where the name should
-        be, so the name comes from the event that started the call.
+        Both come from the event that started the call where the handset gets
+        them wrong: on 1.0.1.87 the hang-up after an incoming call has the
+        number where the name should be, and after an outgoing call every
+        firmware seen (1.0.1.71, 1.0.3.35) reports the handset's own number and
+        name instead of the far end's.
         """
         number, name = params.get("r", ""), params.get("n", "")
         if event in ("incoming", "outgoing"):
-            self._caller = (number, name)
-        elif self._caller is not None and self._caller[0] == number and name in ("", number):
-            name = self._caller[1]
+            self._caller = (number, name, event == "outgoing")
+        elif self._caller is not None:
+            known_number, known_name, outgoing = self._caller
+            if event == "terminated" and outgoing:
+                number, name = known_number, known_name
+            elif known_number == number and name in ("", number):
+                name = known_name
         if event in ("missed", "terminated"):
             self._caller = None
         return {"number": number, "name": name}

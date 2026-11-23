@@ -161,6 +161,7 @@
           "idle": "Idle",
           "ringing": "Ringing",
           "connected": "Connected",
+          "dialing": "Dialing",
           "on_hold": "On hold"
         }
       },
