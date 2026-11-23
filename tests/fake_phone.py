@@ -136,6 +136,9 @@ class FakePhone:
     # Which captured call state the status endpoints report.
     line_fixture: str = "line_status_idle"
     phone_fixture: str = "phone_status_available"
+    # How config_get answers a dead session: "error" like 1.0.3.35 and 1.0.1.87,
+    # "blank" like 1.0.1.71 (an ordinary answer with every value empty).
+    dead_session: str = "error"
     calls: list[Call] = field(default_factory=list)
     sid: str | None = None
     logins: int = 0
@@ -184,11 +187,19 @@ class FakePhone:
             return 200, {"response": "success", "body": "logout"}
 
         if path == "/cgi-bin/config_get":
+            keys = kwargs["params"]["pvalues"].split(",")
             if not self._authed(kwargs):
+                if self.dead_session == "blank":
+                    # As captured in fixtures/wp826_1.0.1.71/config_get_kicked.json.
+                    return 200, {
+                        "configs": [
+                            {"alias": _alias(k) if k in self.values else "", "pvalue": k, "value": ""}
+                            for k in keys
+                        ]
+                    }
                 return 200, load_fixture("config_get_session_expired")
             # Like the WP826: every key asked for is answered. A key the
             # handset doesn't have comes back with an empty value and alias.
-            keys = kwargs["params"]["pvalues"].split(",")
             return 200, {
                 "configs": [
                     {"alias": _alias(k), "pvalue": k, "value": self.values[k]}
@@ -199,6 +210,8 @@ class FakePhone:
             }
         if path == "/cgi-bin/config_update":
             if not self._authed(kwargs):
+                if self.dead_session == "blank":
+                    return 200, load_fixture("config_get_session_expired")
                 return 401, "<html><body><h1>Unauthorized</h1></body></html>"
             for k, v in kwargs["json"]["pvalue"].items():
                 if k not in self.ignored_writes:

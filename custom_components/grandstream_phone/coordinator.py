@@ -330,7 +330,10 @@ class GrandstreamCoordinator(DataUpdateCoordinator[GrandstreamData]):
         self.push.last_event = PushEvent(event, now, dict(params))
 
         if event in BATTERY_SLOTS.values():
-            self.battery_event = BatteryEvent(event == "battery_low", _int(params.get("b")), now)
+            level = _int(params.get("b"))
+            if level is None:
+                level = _int(str(params.get("l", "")).removesuffix("%"))
+            self.battery_event = BatteryEvent(event == "battery_low", level, now)
             self.async_update_listeners()
             return
 

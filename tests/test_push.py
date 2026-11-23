@@ -20,6 +20,7 @@ from homeassistant.helpers.network import NoURLAvailableError
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.grandstream_phone.api import GrandstreamClient
 from custom_components.grandstream_phone.const import DOMAIN
 from custom_components.grandstream_phone.diagnostics import (
     async_get_config_entry_diagnostics,
@@ -28,11 +29,13 @@ from custom_components.grandstream_phone.push import (
     EVENT_SLOTS,
     MAX_URL_LENGTH,
     UrlTooLong,
+    async_claim,
+    async_release,
     build_event_urls,
 )
 
 from .conftest import UNIQUE_ID
-from .fake_phone import EVENT_SLOT_KEYS, FakePhone
+from .fake_phone import EVENT_SLOT_KEYS, HOST, PASSWORD, USERNAME, FakePhone
 
 INTERNAL_URL = "http://192.168.1.10:8123"
 FOREIGN = "http://192.168.1.99:8123/api/webhook/someone-elses?e=x"
@@ -72,7 +75,9 @@ def test_urls_fit_and_carry_the_right_variables() -> None:
         assert query["e"] == [EVENT_SLOTS[slot]]
         assert query["m"] == ["$mac"]
     assert parse_qs(urlsplit(urls["8310"]).query)["r"] == ["$remote"]
-    assert parse_qs(urlsplit(urls["22568"]).query)["b"] == ["$battery"]
+    battery = parse_qs(urlsplit(urls["22568"]).query)
+    assert battery["b"] == ["$battery"]
+    assert battery["l"] == ["$level"]  # 1.0.1.71 leaves $battery empty
 
 
 def test_url_too_long_is_refused() -> None:
@@ -122,6 +127,33 @@ async def test_foreign_slots_are_left_alone(
     assert issue.translation_placeholders["events"] == "incoming, dnd_on"
     # Hosts only: the other instance's webhook ID isn't shown.
     assert issue.translation_placeholders["hosts"] == "192.168.1.99:8123, my-own-thing.local"
+
+
+async def test_claim_over_a_blank_dead_session_keeps_foreign_slots() -> None:
+    # On 1.0.1.71 a dead session reads every slot as empty. Claiming on that
+    # read would overwrite another instance's URLs.
+    phone = FakePhone(dead_session="blank")
+    phone.values["8310"] = FOREIGN
+    client = GrandstreamClient(phone, HOST, USERNAME, PASSWORD)  # type: ignore[arg-type]
+    await client.async_login()
+    phone.expire_session()
+
+    result = await async_claim(client, build_event_urls(INTERNAL_URL, "a" * 64), "a" * 64)
+
+    assert phone.values["8310"] == FOREIGN
+    assert result.foreign == {"8310": FOREIGN}
+
+
+async def test_release_over_a_blank_dead_session_clears_our_slots() -> None:
+    phone = FakePhone(dead_session="blank")
+    urls = build_event_urls(INTERNAL_URL, "a" * 64)
+    phone.values.update(urls)
+    client = GrandstreamClient(phone, HOST, USERNAME, PASSWORD)  # type: ignore[arg-type]
+    await client.async_login()
+    phone.expire_session()
+
+    assert sorted(await async_release(client, "a" * 64)) == sorted(urls)
+    assert all(phone.values[k] == "" for k in urls)
 
 
 async def test_take_over_repair(

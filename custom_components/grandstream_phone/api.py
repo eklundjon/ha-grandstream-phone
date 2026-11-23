@@ -19,11 +19,13 @@ the handset's own web UI (firmware 1.0.3.35) and verified against a WP826:
   change, over-length values) while still answering "success", so every write
   is read back.
 * An expired session shows up as HTTP 401 on ``api-*`` endpoints but as a
-  ``{"status": "session-expired"}`` body on ``config_get``.
+  ``{"status": "session-expired"}`` body on ``config_get``. Firmware 1.0.1.71
+  instead answers ``config_get`` as usual with every value empty, so each read
+  also asks for a setting that is never empty and checks it.
 * With the screen dark, Wi-Fi power save can stall the TLS handshake, so
   transport errors are retried once.
-* Another login can end our session: on 1.0.3.35 a second login on the same
-  account does, on 1.0.1.87 a logout from another session on it does. With a
+* Another login can end our session: on 1.0.3.35 and 1.0.1.71 a second login
+  on the same account does, on 1.0.1.87 a logout from another session on it does. With a
   ``takeover_window``, a session that dies that soon after a successful
   request raises ``SessionTakenOver`` instead of logging straight back in,
   which would end the other session in turn.
@@ -51,6 +53,10 @@ ROLE_ADMIN = "admin"
 ROLE_USER = "user"
 
 _WRONG_PASSWORD = re.compile(r"^wrong(\d*)$")
+
+# Backlight timeout: a setting every WP826 firmware has and never leaves empty
+# (0 means "never"). Read with every config_get to spot a dead session.
+_SESSION_PROBE_KEY = "1413"
 
 
 class GrandstreamError(Exception):
@@ -254,8 +260,12 @@ class GrandstreamClient:
         value (``:dnd``) has no alias but isn't empty, so both survive.
         """
         keys = list(keys)
+        asked = keys if _SESSION_PROBE_KEY in keys else [*keys, _SESSION_PROBE_KEY]
         payload = await self._authed(
-            "GET", "/cgi-bin/config_get", params={"pvalues": ",".join(keys)}
+            "GET",
+            "/cgi-bin/config_get",
+            params={"pvalues": ",".join(asked)},
+            expired=_is_blank_session,
         )
         configs = payload.get("configs") if isinstance(payload, dict) else None
         if not isinstance(configs, list):
@@ -265,6 +275,7 @@ class GrandstreamClient:
             for item in configs
             if isinstance(item, dict)
             and "pvalue" in item
+            and str(item["pvalue"]) in keys
             and (item.get("value") or item.get("alias"))
         }
 
@@ -339,8 +350,12 @@ class GrandstreamClient:
         form: dict[str, str] | None = None,
         json_body: Any = None,
         form_sid: bool = False,
+        expired: Callable[[Any], bool] | None = None,
     ) -> Any:
-        """A request that needs a session. Logs in, or in again, as needed."""
+        """A request that needs a session. Logs in, or in again, as needed.
+
+        ``expired`` spots a dead session in an answer that otherwise looks fine.
+        """
         for attempt in range(2):
             if self._sid is None or attempt == 1:
                 await self._relogin()
@@ -352,6 +367,8 @@ class GrandstreamClient:
                 payload = await self._request(
                     method, path, params=params, form=form, json_body=json_body
                 )
+                if expired is not None and expired(payload):
+                    raise _SessionExpired
             except _SessionExpired:
                 if attempt == 1:
                     raise PermissionDenied(f"{path} refused after a fresh login") from None
@@ -435,6 +452,24 @@ def _is_session_expired(payload: Any) -> bool:
         return False
     body = payload.get("body")
     return isinstance(body, dict) and body.get("status") == "session-expired"
+
+
+def _is_blank_session(payload: Any) -> bool:
+    """A config_get answer from a dead session on 1.0.1.71: aliases, no values.
+
+    Only the probe key decides. A handset without that setting answers it with
+    an empty alias too, and is never mistaken for a dead session.
+    """
+    configs = payload.get("configs") if isinstance(payload, dict) else None
+    if not isinstance(configs, list):
+        return False
+    return any(
+        isinstance(item, dict)
+        and str(item.get("pvalue")) == _SESSION_PROBE_KEY
+        and item.get("alias")
+        and not item.get("value")
+        for item in configs
+    )
 
 
 def _success_body(payload: Any, kind: type) -> Any:
