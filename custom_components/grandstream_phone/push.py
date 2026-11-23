@@ -45,7 +45,8 @@ EVENT_SLOTS = {**CALL_SLOTS, **STATE_SLOTS, **BATTERY_SLOTS}
 # against the entry.
 _CALL_QUERY = "m=$mac&r=$remote&n=$display_remote"
 _STATE_QUERY = "m=$mac"
-_BATTERY_QUERY = "m=$mac&b=$battery"
+# `$battery` is empty on 1.0.1.71, so `$level` ("82%") comes along as a fallback.
+_BATTERY_QUERY = "m=$mac&b=$battery&l=$level"
 
 # Longest value the handset keeps (256 accepted, 300 dropped on WP826).
 MAX_URL_LENGTH = 256
