@@ -217,13 +217,14 @@ async def test_outgoing_call_cancelled_while_ringing_ends(
     await _push(hass, client, entry, "idle")
     assert fired == [("outgoing", "31", "31"), ("ended", "31", "31")]
 
-    # An incoming call that goes idle without missed or terminated isn't
-    # reported as ended, and isn't remembered for the next call either.
+    # A missed incoming call goes idle just before missed (1.0.3.40). That idle
+    # ends nothing, and the caller's name survives it for a missed event that
+    # carries the number as the name (as 1.0.1.87's hang-ups do).
     fired.clear()
     await _push(hass, client, entry, "incoming", **CALLER)
     await _push(hass, client, entry, "idle")
-    await _push(hass, client, entry, "terminated", r="20", n="20")
-    assert fired == [("incoming", "10", "Kitchen Phone"), ("ended", "20", "20")]
+    await _push(hass, client, entry, "missed", r="10", n="10")
+    assert fired == [("incoming", "10", "Kitchen Phone"), ("missed", "10", "Kitchen Phone")]
 
 
 async def test_repeated_call_event_is_dropped(

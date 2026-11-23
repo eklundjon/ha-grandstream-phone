@@ -363,18 +363,18 @@ class GrandstreamCoordinator(DataUpdateCoordinator[GrandstreamData]):
                 return
             self._last_call_push = (*key, now)
 
-        if event == "idle" and self._caller is not None:
+        if event == "idle" and self._caller is not None and self._caller[2]:
             # An outgoing call hung up before it was answered ends with idle
             # alone, no terminated. A terminated would have cleared the call.
-            number, name, outgoing = self._caller
+            # An incoming call is left alone: its idle comes just before missed.
+            number, name, _ = self._caller
             self._caller = None
-            if outgoing:
-                async_dispatcher_send(
-                    self.hass,
-                    signal_call(self.config_entry.entry_id),
-                    CALL_EVENT_TYPES["terminated"],
-                    {"number": number, "name": name},
-                )
+            async_dispatcher_send(
+                self.hass,
+                signal_call(self.config_entry.entry_id),
+                CALL_EVENT_TYPES["terminated"],
+                {"number": number, "name": name},
+            )
         if event in CALL_EVENT_TYPES:
             attributes = self._call_attributes(event, params)
             async_dispatcher_send(
