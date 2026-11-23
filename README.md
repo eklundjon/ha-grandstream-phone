@@ -46,7 +46,7 @@ One device per handset, with these entities:
 | Missed call backlight while charging | select | Always on / Off after backlight timeout / Dim, always on |
 | Do not disturb | switch | |
 | Wi-Fi power save | switch | Disabled by default; see below |
-| Call state | sensor | Idle / Ringing / Connected / On hold |
+| Call state | sensor | Idle / Ringing / Dialing / Connected / On hold |
 | Call | event | Incoming / Answered / Outgoing / Missed / Ended, with the other party's number and name. Needs [pushed events](#pushed-events) |
 | Ringing | binary sensor | |
 | In use | binary sensor | On during a call, including on hold |

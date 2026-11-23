@@ -123,7 +123,7 @@ async def test_unknown_line_state_is_unknown(
     await _setup(hass, entry)
     original = phone._answer
     phone._answer = lambda m, p, kw: (  # type: ignore[method-assign]
-        (200, {"response": "success", "body": [{"line": 1, "state": "dialing"}]})
+        (200, {"response": "success", "body": [{"line": 1, "state": "failed"}]})
         if p.endswith("line_status") and phone._authed(kw)
         else original(m, p, kw)
     )

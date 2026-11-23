@@ -23,9 +23,19 @@ from .entity import GrandstreamEntity
 
 PARALLEL_UPDATES = 0
 
-# Line states seen on a WP826 (fw 1.0.3.35), most significant first, and the
-# option name each is reported as.
-LINE_STATES = {"ringing": "ringing", "connected": "connected", "onhold": "on_hold"}
+# Line states, most significant first, and the option each is reported as.
+# Seen on a WP826: ringing, connected, onhold, and ringback while an outgoing
+# call rings at the far end. dialing, calling and conference are from the web
+# UI's own state table. Its others (ending, failed, transfer, ...) stay unknown.
+LINE_STATES = {
+    "ringing": "ringing",
+    "connected": "connected",
+    "conference": "connected",
+    "dialing": "dialing",
+    "calling": "dialing",
+    "ringback": "dialing",
+    "onhold": "on_hold",
+}
 
 
 def line_state(data: GrandstreamData) -> str | None:
@@ -61,7 +71,7 @@ SENSORS = (
         key="call_state",
         translation_key="call_state",
         device_class=SensorDeviceClass.ENUM,
-        options=["idle", *LINE_STATES.values()],
+        options=["idle", *dict.fromkeys(LINE_STATES.values())],
         value_fn=line_state,
     ),
     # Verified on WP826 with UniFi Talk: rises ~16 s after a message is left,

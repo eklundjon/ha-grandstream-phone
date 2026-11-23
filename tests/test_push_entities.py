@@ -18,11 +18,13 @@ from pytest_homeassistant_custom_component.common import (
     mock_restore_cache,
 )
 
+from custom_components.grandstream_phone.binary_sensor import BINARY_SENSORS
 from custom_components.grandstream_phone.const import DOMAIN, KEY_DND
 from custom_components.grandstream_phone.coordinator import GrandstreamData, apply_push
 from custom_components.grandstream_phone.diagnostics import (
     async_get_config_entry_diagnostics,
 )
+from custom_components.grandstream_phone.sensor import line_state
 
 from .conftest import UNIQUE_ID
 from .fake_phone import FakePhone, load_fixture
@@ -150,6 +152,26 @@ async def test_call_events_fire_with_caller_details(
     state = _state(hass, "event", "call")
     assert state.attributes["event_type"] == "ended"
     assert state.attributes["name"] == "Kitchen Phone"
+
+
+@pytest.mark.parametrize(
+    ("states", "expected"),
+    [
+        (("ringback", "idle"), "dialing"),
+        (("dialing",), "dialing"),
+        (("calling",), "dialing"),
+        (("conference",), "connected"),
+        (("onhold", "dialing"), "dialing"),  # e.g. calling someone to transfer to
+        (("ringing", "connected"), "ringing"),
+        (("idle", "idle"), "idle"),
+        (("failed",), None),
+    ],
+)
+def test_line_state_from_raw_states(states: tuple[str, ...], expected: str | None) -> None:
+    data = _data(*states)
+    assert line_state(data) == expected
+    in_use = next(d for d in BINARY_SENSORS if d.key == "in_use")
+    assert in_use.is_on_fn(data) == (expected in ("connected", "dialing", "on_hold"))
 
 
 async def test_non_call_events_do_not_fire_call_events(

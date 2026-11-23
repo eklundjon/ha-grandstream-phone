@@ -67,6 +67,7 @@
         "state": {
           "ringing": "mdi:phone-ring",
           "connected": "mdi:phone-in-talk",
+          "dialing": "mdi:phone-outgoing",
           "on_hold": "mdi:phone-paused"
         }
       },
