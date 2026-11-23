@@ -58,6 +58,10 @@ CALL_EVENT_TYPES = {
 # another login (polls keep an idle session alive), so leave the handset alone
 # for a while instead of taking it straight back.
 TAKEOVER_WINDOW = timedelta(minutes=2)
+
+# The handset sends some call events twice, a few tens of ms apart (outgoing on
+# 1.0.3.35); an identical one within this long is that repeat.
+REPEAT_WINDOW = timedelta(seconds=1)
 TAKEOVER_BACKOFF = timedelta(minutes=5)
 
 
@@ -212,6 +216,8 @@ class GrandstreamCoordinator(DataUpdateCoordinator[GrandstreamData]):
         self._polled_keys: tuple[str, ...] = POLLED_KEYS
         # (number, name, outgoing) of the call in progress, for its later events.
         self._caller: tuple[str, str, bool] | None = None
+        # (event, number, name, received) of the last call event, to drop repeats.
+        self._last_call_push: tuple[str, str, str, datetime] | None = None
 
     @property
     def login_info(self) -> LoginInfo | None:
@@ -336,6 +342,14 @@ class GrandstreamCoordinator(DataUpdateCoordinator[GrandstreamData]):
             self.battery_event = BatteryEvent(event == "battery_low", level, now)
             self.async_update_listeners()
             return
+
+        if event in CALL_EVENT_TYPES:
+            key = (event, params.get("r", ""), params.get("n", ""))
+            last = self._last_call_push
+            if last is not None and last[:3] == key and now - last[3] < REPEAT_WINDOW:
+                _LOGGER.debug("Ignoring repeated %s from %s", event, self.client.host)
+                return
+            self._last_call_push = (*key, now)
 
         if event == "idle" and self._caller is not None:
             # An outgoing call hung up before it was answered ends with idle

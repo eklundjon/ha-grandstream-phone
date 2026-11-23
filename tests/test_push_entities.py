@@ -213,6 +213,35 @@ async def test_outgoing_call_cancelled_while_ringing_ends(
     assert fired == [("incoming", "10", "Kitchen Phone"), ("ended", "20", "20")]
 
 
+async def test_repeated_call_event_is_dropped(
+    hass: HomeAssistant, hass_client_no_auth, phone: FakePhone, entry: MockConfigEntry, freezer
+) -> None:
+    # 1.0.3.35 sends outgoing twice, ~35 ms apart. The repeat would fire the
+    # event again and mark a second line connected.
+    await _setup(hass, entry)
+    client = await hass_client_no_auth()
+    coordinator = entry.runtime_data
+    fired: list[str] = []
+
+    @callback
+    def record(event: Event) -> None:
+        fired.append(event.data["new_state"].attributes["event_type"])
+
+    async_track_state_change_event(hass, _entity_id(hass, "event", "call"), record)
+
+    with patch.object(coordinator, "async_request_refresh", AsyncMock()):
+        await _push(hass, client, entry, "outgoing", r="40", n="40")
+        await _push(hass, client, entry, "outgoing", r="40", n="40")
+        assert fired == ["outgoing"]
+        assert _states(coordinator.data).count("connected") == 1
+
+        # The same call placed again later is a new call.
+        await _push(hass, client, entry, "idle")
+        freezer.tick(2)
+        await _push(hass, client, entry, "outgoing", r="40", n="40")
+    assert fired == ["outgoing", "ended", "outgoing"]
+
+
 @pytest.mark.parametrize(
     ("states", "expected"),
     [
