@@ -154,6 +154,27 @@ async def test_call_events_fire_with_caller_details(
     assert state.attributes["name"] == "Kitchen Phone"
 
 
+async def test_outgoing_call_ends_with_the_far_end(
+    hass: HomeAssistant, hass_client_no_auth, phone: FakePhone, entry: MockConfigEntry
+) -> None:
+    # After an outgoing call, the hang-up reports the handset's own number and
+    # name (seen on 1.0.1.71 and 1.0.3.35). The entity reports who was called.
+    await _setup(hass, entry)
+    client = await hass_client_no_auth()
+
+    await _push(hass, client, entry, "outgoing", r="21", n="21")
+    await _push(hass, client, entry, "terminated", r="30", n="Bedroom Phone")
+    state = _state(hass, "event", "call")
+    assert state.attributes["event_type"] == "ended"
+    assert (state.attributes["number"], state.attributes["name"]) == ("21", "21")
+
+    # The next incoming call is reported as sent, hang-up included.
+    await _push(hass, client, entry, "incoming", **CALLER)
+    await _push(hass, client, entry, "terminated", **CALLER)
+    state = _state(hass, "event", "call")
+    assert (state.attributes["number"], state.attributes["name"]) == ("10", "Kitchen Phone")
+
+
 @pytest.mark.parametrize(
     ("states", "expected"),
     [

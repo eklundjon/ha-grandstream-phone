@@ -210,8 +210,8 @@ class GrandstreamCoordinator(DataUpdateCoordinator[GrandstreamData]):
         self.battery_event: BatteryEvent | None = None
         self.accounts: list[SipAccount] = []
         self._polled_keys: tuple[str, ...] = POLLED_KEYS
-        # (number, name) of the call in progress, for naming its later events.
-        self._caller: tuple[str, str] | None = None
+        # (number, name, outgoing) of the call in progress, for its later events.
+        self._caller: tuple[str, str, bool] | None = None
 
     @property
     def login_info(self) -> LoginInfo | None:
@@ -338,12 +338,15 @@ class GrandstreamCoordinator(DataUpdateCoordinator[GrandstreamData]):
             return
 
         if event in CALL_EVENT_TYPES:
+            attributes = self._call_attributes(event, params)
             async_dispatcher_send(
                 self.hass,
                 signal_call(self.config_entry.entry_id),
                 CALL_EVENT_TYPES[event],
-                self._call_attributes(event, params),
+                attributes,
             )
+            # Match the hang-up to the right line by the corrected number.
+            params = {**params, "r": attributes["number"]}
         if self.data is not None:
             updated = apply_push(self.data, event, params)
             if updated is not self.data:
@@ -354,16 +357,23 @@ class GrandstreamCoordinator(DataUpdateCoordinator[GrandstreamData]):
         self.async_update_listeners()
 
     def _call_attributes(self, event: str, params: Mapping[str, str]) -> dict[str, str]:
-        """Caller details for a call event.
+        """The other party's details for a call event.
 
-        On 1.0.1.87 the hang-up event reports the number where the name should
-        be, so the name comes from the event that started the call.
+        Both come from the event that started the call where the handset gets
+        them wrong: on 1.0.1.87 the hang-up after an incoming call has the
+        number where the name should be, and after an outgoing call every
+        firmware seen (1.0.1.71, 1.0.3.35) reports the handset's own number and
+        name instead of the far end's.
         """
         number, name = params.get("r", ""), params.get("n", "")
         if event in ("incoming", "outgoing"):
-            self._caller = (number, name)
-        elif self._caller is not None and self._caller[0] == number and name in ("", number):
-            name = self._caller[1]
+            self._caller = (number, name, event == "outgoing")
+        elif self._caller is not None:
+            known_number, known_name, outgoing = self._caller
+            if event == "terminated" and outgoing:
+                number, name = known_number, known_name
+            elif known_number == number and name in ("", number):
+                name = known_name
         if event in ("missed", "terminated"):
             self._caller = None
         return {"number": number, "name": name}
