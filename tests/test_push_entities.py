@@ -11,8 +11,9 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from homeassistant.config_entries import ConfigEntryDisabler
 from homeassistant.const import CONF_WEBHOOK_ID, STATE_OFF, STATE_ON, STATE_UNKNOWN
-from homeassistant.core import HomeAssistant, State
+from homeassistant.core import Event, HomeAssistant, State, callback
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.event import async_track_state_change_event
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
     mock_restore_cache,
@@ -173,6 +174,43 @@ async def test_outgoing_call_ends_with_the_far_end(
     await _push(hass, client, entry, "terminated", **CALLER)
     state = _state(hass, "event", "call")
     assert (state.attributes["number"], state.attributes["name"]) == ("10", "Kitchen Phone")
+
+
+async def test_outgoing_call_cancelled_while_ringing_ends(
+    hass: HomeAssistant, hass_client_no_auth, phone: FakePhone, entry: MockConfigEntry
+) -> None:
+    # Hanging up before the far end answers sends idle alone, no terminated.
+    await _setup(hass, entry)
+    client = await hass_client_no_auth()
+    entity_id = _entity_id(hass, "event", "call")
+    fired: list[tuple[str, str, str]] = []
+
+    @callback
+    def record(event: Event) -> None:
+        a = event.data["new_state"].attributes
+        fired.append((a["event_type"], a["number"], a["name"]))
+
+    async_track_state_change_event(hass, entity_id, record)
+
+    await _push(hass, client, entry, "outgoing", r="30", n="30")
+    await _push(hass, client, entry, "idle")
+    assert fired == [("outgoing", "30", "30"), ("ended", "30", "30")]
+
+    # A call that connected ends once, on terminated; the idle after it adds nothing.
+    fired.clear()
+    await _push(hass, client, entry, "outgoing", r="31", n="31")
+    await _push(hass, client, entry, "established", r="31", n="31")
+    await _push(hass, client, entry, "terminated", r="40", n="Office Phone")
+    await _push(hass, client, entry, "idle")
+    assert fired == [("outgoing", "31", "31"), ("ended", "31", "31")]
+
+    # An incoming call that goes idle without missed or terminated isn't
+    # reported as ended, and isn't remembered for the next call either.
+    fired.clear()
+    await _push(hass, client, entry, "incoming", **CALLER)
+    await _push(hass, client, entry, "idle")
+    await _push(hass, client, entry, "terminated", r="20", n="20")
+    assert fired == [("incoming", "10", "Kitchen Phone"), ("ended", "20", "20")]
 
 
 @pytest.mark.parametrize(
