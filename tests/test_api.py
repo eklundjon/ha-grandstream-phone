@@ -195,6 +195,14 @@ def test_blank_session_fixture_is_detected() -> None:
     assert not _is_blank_session({"configs": [{"alias": "", "pvalue": "1413", "value": ""}]})
 
 
+def test_session_expired_fixture_matches_1_0_3_40() -> None:
+    # The parent folder's session-expired answer was written by hand; 1.0.3.40
+    # sent exactly that to a dead session, not 1.0.1.71's blank answer.
+    kicked = load_fixture("wp826_1.0.3.40/config_get_kicked")
+    assert kicked == load_fixture("config_get_session_expired")
+    assert not _is_blank_session(load_fixture("wp826_1.0.3.40/config_get"))
+
+
 async def test_set_values_writes_and_reads_back() -> None:
     phone = FakePhone()
     await _client(phone).async_set_values({"334": 10, ":dnd": "1"})
