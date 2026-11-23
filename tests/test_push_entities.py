@@ -106,10 +106,23 @@ def test_apply_missed_and_idle() -> None:
     assert data.phone_status == "available"
 
 
-def test_apply_outgoing_connects_a_line() -> None:
-    data = apply_push(_data("idle", "idle"), "outgoing", {"r": "*86", "n": "*86"})
-    assert _states(data) == ["connected", "idle"]
+def test_apply_outgoing_dials_then_connects() -> None:
+    far_end = {"r": "*86", "n": "*86"}
+    data = apply_push(_data("idle", "idle"), "outgoing", far_end)
+    assert _states(data) == ["ringback", "idle"]
+    assert line_state(data) == "dialing"
     assert data.phone_status == "busy"
+
+    data = apply_push(data, "established", far_end)
+    assert _states(data) == ["connected", "idle"]
+
+
+def test_apply_outgoing_after_a_poll_keeps_one_line() -> None:
+    # A poll can see the call ringing out before the push arrives.
+    data = _data("ringback", "idle", phone="busy")
+    data = apply_push(data, "outgoing", {"r": "40", "n": "40"})
+    assert _states(data) == ["ringback", "idle"]
+    assert data.line_status[0]["remotenumber"] == "40"
 
 
 def test_apply_hang_up_leaves_other_calls() -> None:
@@ -217,7 +230,7 @@ async def test_repeated_call_event_is_dropped(
     hass: HomeAssistant, hass_client_no_auth, phone: FakePhone, entry: MockConfigEntry, freezer
 ) -> None:
     # 1.0.3.35 sends outgoing twice, ~35 ms apart. The repeat would fire the
-    # event again and mark a second line connected.
+    # event again and mark a second line as dialing.
     await _setup(hass, entry)
     client = await hass_client_no_auth()
     coordinator = entry.runtime_data
@@ -233,7 +246,7 @@ async def test_repeated_call_event_is_dropped(
         await _push(hass, client, entry, "outgoing", r="40", n="40")
         await _push(hass, client, entry, "outgoing", r="40", n="40")
         assert fired == ["outgoing"]
-        assert _states(coordinator.data).count("connected") == 1
+        assert _states(coordinator.data).count("ringback") == 1
 
         # The same call placed again later is a new call.
         await _push(hass, client, entry, "idle")

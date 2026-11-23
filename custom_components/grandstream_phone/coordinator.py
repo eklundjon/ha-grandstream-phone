@@ -62,6 +62,9 @@ TAKEOVER_WINDOW = timedelta(minutes=2)
 # The handset sends some call events twice, a few tens of ms apart (outgoing on
 # 1.0.3.35); an identical one within this long is that repeat.
 REPEAT_WINDOW = timedelta(seconds=1)
+
+# Line states of an outgoing call not yet answered (the call state sensor's Dialing).
+DIALING_STATES = ("dialing", "calling", "ringback")
 TAKEOVER_BACKOFF = timedelta(minutes=5)
 
 
@@ -156,14 +159,23 @@ def apply_push(data: GrandstreamData, event: str, params: Mapping[str, str]) -> 
                 return line
         return None
 
+    def dialing() -> dict[str, Any] | None:
+        return next((line for line in lines if line.get("state") in DIALING_STATES), None)
+
     if event == "incoming":
         line = first("idle")
         if line is not None:
             line.update(state="ringing", remotenumber=number, remotename="")
         if phone == "available":
             phone = "ringing"
-    elif event in ("answered", "established", "outgoing"):
-        line = first("ringing") or first("idle")
+    elif event == "outgoing":
+        # It rings at the far end until established; the handset calls that ringback.
+        line = dialing() or first("idle")
+        if line is not None:
+            line.update(state="ringback", remotenumber=number)
+        phone = "busy"
+    elif event in ("answered", "established"):
+        line = first("ringing") or dialing() or first("idle")
         if line is not None:
             line.update(state="connected", remotenumber=number or line.get("remotenumber", ""))
         phone = "busy"
