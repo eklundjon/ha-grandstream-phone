@@ -186,7 +186,7 @@ def async_track_device_disable(hass: HomeAssistant, entry: GrandstreamConfigEntr
         if event.data.get("action") != "update" or "disabled_by" not in event.data.get("changes", {}):
             return
         device = dr.async_get(hass).async_get(event.data["device_id"])
-        if device is None or entry.entry_id not in device.config_entries:
+        if device is None or not _belongs_to(device, entry.entry_id):
             return
         coordinator = entry.runtime_data
         if device.disabled_by is not None:
@@ -196,3 +196,16 @@ def async_track_device_disable(hass: HomeAssistant, entry: GrandstreamConfigEntr
             hass.async_create_task(async_claim_slots(hass, entry))
 
     entry.async_on_unload(hass.bus.async_listen(dr.EVENT_DEVICE_REGISTRY_UPDATED, changed))
+
+
+def _belongs_to(device: dr.DeviceEntry, entry_id: str) -> bool:
+    """Whether the device is this entry's.
+
+    Newer Home Assistant gives a device a single `config_entry_id`; reading the
+    older `config_entries` set there logs a deprecation warning (it goes away in
+    2027.10). The minimum supported version (2025.4) only has the set.
+    """
+    owner = getattr(device, "config_entry_id", None)
+    if owner is not None:
+        return owner == entry_id
+    return entry_id in getattr(device, "config_entries", ())
